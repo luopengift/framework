@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/luopengift/log"
 	"github.com/luopengift/types"
@@ -55,6 +56,7 @@ func (app *App) Init() error {
 
 // Run app instance
 func (app *App) Run(ctx context.Context) {
+	now := time.Now()
 	log.Display("CONFIG", app.Config)
 	if app.Debug {
 		log.SetLevel(log.DEBUG)
@@ -70,6 +72,6 @@ func (app *App) Run(ctx context.Context) {
 	select {
 	case <-sign:
 		log.Warn("[CTRL+C]")
-		return
 	}
+	log.Info("running time: %v", time.Since(now))
 }
