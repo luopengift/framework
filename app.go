@@ -13,11 +13,27 @@ import (
 	"github.com/luopengift/version"
 )
 
+type Executer interface {
+	Execute(ctx context.Context, app *App) error
+}
+
+type Func func(ctx context.Context, app *App) error
+
+func (f Func) Execute(ctx context.Context, app *App) error {
+	return f(ctx, app)
+}
+
 // App framework
 type App struct {
-	Debug  bool
+	*Option
 	Config interface{}
-	Func   func(ctx context.Context, app *App) error
+	Func   Executer
+}
+
+// Option option
+type Option struct {
+	Debug   bool
+	LogPath string
 }
 
 func (app *App) copy(options ...*App) {
@@ -36,7 +52,14 @@ func (app *App) copy(options ...*App) {
 
 // New new app instance
 func New() *App {
-	return &App{}
+	return &App{
+		Option: &Option{},
+	}
+
+}
+
+func (app *App) HandleFunc(f Func) {
+	app.Func = f
 }
 
 // Init app instance
@@ -57,21 +80,35 @@ func (app *App) Init() error {
 // Run app instance
 func (app *App) Run(ctx context.Context) {
 	now := time.Now()
-	log.Display("CONFIG", app.Config)
-	if app.Debug {
-		log.SetLevel(log.DEBUG)
-	} else {
-		log.SetLevel(log.INFO)
-	}
+	done := make(chan struct{})
+	log.Display("CONFIG", app)
 	file := log.NewFile("%Y-%M-%D.log")
 	file.SetMaxBytes(1000 * 1024 * 1024)
-	log.SetOutput(file, os.Stderr)
-	go app.Func(ctx, app)
+	if app.Debug {
+		log.SetLevel(log.DEBUG)
+		log.SetOutput(file, os.Stderr)
+	} else {
+		log.SetLevel(log.INFO)
+		log.SetOutput(file)
+	}
+
+	if app.Func == nil {
+		log.Error("Func must set! %#v", &app.Func)
+		return
+	}
+	go func(ctx context.Context, app *App) {
+		if err := app.Func.Execute(ctx, app); err != nil {
+			log.Error("Execute: %v", err)
+		}
+		done <- struct{}{}
+	}(ctx, app)
 	sign := make(chan os.Signal, 1)
 	signal.Notify(sign, os.Interrupt, os.Kill)
 	select {
 	case <-sign:
 		log.Warn("[CTRL+C]")
+	case <-done:
+	case <-ctx.Done():
 	}
 	log.Info("running time: %v", time.Since(now))
 }
