@@ -43,6 +43,7 @@ type App struct {
 	*Option
 	exit        chan struct{} //退出信号
 	Config      interface{}
+	onInit      func(*App) error
 	Func        Executer
 	Threads     []Executer
 	ThreadLoops []ExecuteLooper
@@ -157,9 +158,13 @@ func (app *App) ThreadLoopFuncs(funs ...FuncLoop) {
 }
 
 // Init app instance
-func (app *App) Init(opts ...*Option) error {
-	app.Option.Merge(opts...)
-	return nil
+// func (app *App) Init(opts ...*Option) error {
+// 	app.Option.Merge(opts...)
+// 	return nil
+// }
+// Init init program global var
+func (app *App) Init(fun func(app *App) error) {
+	app.onInit = fun
 }
 
 // Run app instance
@@ -187,15 +192,13 @@ func (app *App) Run(ctx context.Context) error {
 	if err := app.initLog(); err != nil {
 		return err
 	}
+	if app.onInit != nil {
+		if err := app.onInit(app); err != nil {
+			return err
+		}
+	}
 	if app.Func == nil {
 		return log.Errorf("Func must set! %T", app.Func.Execute)
-	}
-
-	if err := app.runThreads(ctx); err != nil {
-		return err
-	}
-	if err := app.runThreadLoops(ctx); err != nil {
-		return err
 	}
 
 	go func(ctx context.Context, app *App) {
@@ -204,6 +207,14 @@ func (app *App) Run(ctx context.Context) error {
 		}
 		app.exit <- struct{}{}
 	}(ctx, app)
+
+	if err := app.runThreads(ctx); err != nil {
+		return err
+	}
+	if err := app.runThreadLoops(ctx); err != nil {
+		return err
+	}
+
 	sign := make(chan os.Signal)
 	signal.Notify(sign, os.Interrupt, os.Kill)
 	select {
