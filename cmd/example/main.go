@@ -26,7 +26,7 @@ var t1 = func(ctx context.Context, app *framework.App) error {
 func main() {
 	ctx := context.Background()
 	app := framework.New()
-	app.Init()
+	//app.Init(nil)
 	//app.Config = &config{}
 	app.Debug = true
 
