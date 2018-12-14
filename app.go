@@ -148,7 +148,7 @@ func (app *App) Run(ctx context.Context) error {
 	}
 	flag.Parse()
 	if app.Func == nil {
-		return log.Errorf("Func must set! %T", app.Func.Execute)
+		return log.Errorf("Func must set!")
 	}
 
 	go func(ctx context.Context, app *App) {
