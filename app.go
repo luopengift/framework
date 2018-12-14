@@ -12,87 +12,31 @@ import (
 	"github.com/luopengift/version"
 )
 
-// Executer execute interface, 用户自行管理携程运行退出等状态, framework仅调起函数
-type Executer interface {
-	Execute(ctx context.Context, app *App) error
-}
-
-// Func func
-type Func func(ctx context.Context, app *App) error
-
-// Execute execute
-func (f Func) Execute(ctx context.Context, app *App) error {
-	return f(ctx, app)
-}
-
-// ExecuteLooper 协程循环由framework管理
-type ExecuteLooper interface {
-	ExecuteLoop(app *App) (bool, error)
-}
-
-// FuncLoop func
-type FuncLoop func(app *App) (bool, error)
-
-// ExecuteLoop ExecuteLoop
-func (f FuncLoop) ExecuteLoop(app *App) (bool, error) {
-	return f(app)
-}
-
 // App framework
 type App struct {
 	*Option
 	exit        chan struct{} //退出信号
 	Config      interface{}
 	onInit      func(*App) error
+	onFlag      func() error
 	Func        Executer
 	Threads     []Executer
 	ThreadLoops []ExecuteLooper
 }
 
-var emptyOption = &Option{}
-var defaultOption = &Option{
-	Debug:          true,
-	LogPath:        "logs/%Y-%M-%D.log",
-	MaxBytes:       200 * 1024 * 1024, //200M
-	MaxBackupIndex: 50,
-}
-
-// Option option
-type Option struct {
-	Debug          bool
-	LogPath        string
-	MaxBytes       int // 日志文件大小
-	MaxBackupIndex int // 日志文件数量
-}
-
-func (opt *Option) mrgreIn(o *Option) {
-	if o.Debug != emptyOption.Debug {
-		opt.Debug = o.Debug
-	}
-	if o.LogPath != emptyOption.LogPath {
-		opt.LogPath = o.LogPath
-	}
-	if o.MaxBytes != emptyOption.MaxBytes {
-		opt.MaxBytes = o.MaxBytes
-	}
-	if o.MaxBackupIndex != emptyOption.MaxBackupIndex {
-		opt.MaxBackupIndex = o.MaxBackupIndex
-	}
-}
-
-// Merge merge
-func (opt *Option) Merge(opts ...*Option) {
-	for _, o := range opts {
-		opt.mrgreIn(o)
-	}
-}
-
 // New new app instance
-func New() *App {
-	return &App{
+func New(opts ...*Option) *App {
+	app := &App{
 		Option: defaultOption,
 		exit:   make(chan struct{}),
 	}
+	app.Option.Merge(opts...)
+	return app
+}
+
+// Flag flag
+func (app *App) Flag(fun func() error) {
+	app.onFlag = fun
 }
 
 // HandleFunc handle func
@@ -169,6 +113,11 @@ func (app *App) Init(fun func(app *App) error) {
 
 // Run app instance
 func (app *App) Run(ctx context.Context) error {
+	if app.onFlag != nil {
+		if err := app.onFlag(); err != nil {
+			return err
+		}
+	}
 	c := flag.String("conf", "conf.yml", "(conf)配置文件")
 	//p := flag.Bool("pprof", false, "(pprof)调试模式")
 	v := flag.Bool("version", false, "(version)版本")
@@ -197,6 +146,7 @@ func (app *App) Run(ctx context.Context) error {
 			return err
 		}
 	}
+	flag.Parse()
 	if app.Func == nil {
 		return log.Errorf("Func must set! %T", app.Func.Execute)
 	}

@@ -18,9 +18,15 @@ var mainFunc = func(ctx context.Context, app *framework.App) error {
 	time.Sleep(1 * time.Second)
 	return nil
 }
-var t1 = func(ctx context.Context, app *framework.App) error {
+var t1 = func(app *framework.App) (bool, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
 	log.Debug("debug...")
-	return fmt.Errorf("t1 exit")
+	//panic("panic test")
+	return false, nil
 }
 
 func main() {
@@ -29,9 +35,10 @@ func main() {
 	//app.Init(nil)
 	//app.Config = &config{}
 	app.Debug = true
+	app.Option.Debug = false
 
 	app.MainLoopFunc(mainFunc)
-	app.ThreadFuncs(t1)
+	app.ThreadLoopFuncs(t1)
 	if err := app.Run(ctx); err != nil {
 		log.Error("%v", err)
 	}
