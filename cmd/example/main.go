@@ -10,12 +10,11 @@ import (
 )
 
 type config struct {
-	url string
+	ReportURL string `json:"report_url" yaml:"report_url"`
 }
 
 var mainFunc = func(ctx context.Context, app *framework.App) error {
-	log.Debug("debug...")
-	time.Sleep(1 * time.Second)
+	time.Sleep(10 * time.Second)
 	return nil
 }
 var t1 = func(app *framework.App) (bool, error) {
@@ -24,21 +23,17 @@ var t1 = func(app *framework.App) (bool, error) {
 			fmt.Println(err)
 		}
 	}()
-	log.Debug("debug...")
-	//panic("panic test")
 	return false, nil
 }
 
 func main() {
 	ctx := context.Background()
 	app := framework.New()
-	//app.Init(nil)
-	//app.Config = &config{}
-	app.Debug = true
-	app.Option.Debug = false
+	app.BindConfig(&config{})
 
 	app.MainLoopFunc(mainFunc)
 	app.ThreadLoopFuncs(t1)
+
 	if err := app.Run(ctx); err != nil {
 		log.Error("%v", err)
 	}

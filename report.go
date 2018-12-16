@@ -1,8 +1,12 @@
 package framework
 
+import "time"
+
 // Report report
 type Report struct {
-	URLs []string
+	ID   string    `json:"id"`
+	Name string    `json:"name"`
+	Time time.Time `json:"time"`
 }
 
 func (r *Report) getURL() string {

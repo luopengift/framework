@@ -8,7 +8,6 @@ import (
 )
 
 func (app *App) initLog() error {
-	log.Display("CONFIG", app)
 	file := log.NewFile(app.Option.LogPath)
 	file.SetMaxBytes(app.Option.MaxBytes)
 	file.SetMaxIndex(app.Option.MaxBackupIndex)

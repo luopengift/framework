@@ -31,3 +31,24 @@ func Retry(url string, reader io.Reader, retry int) error {
 	}
 	return err
 }
+
+// Retry2 retry
+func Retry2(fun func() error, times int) error {
+
+	return nil
+}
+
+// RetryByCtl 重试,通过chan来控制
+func RetryByCtl(fun func() error, ctl func() <-chan struct{}) error {
+	for {
+		select {
+		case _, ok := <-ctl():
+			if !ok {
+				return fmt.Errorf("cancelled")
+			}
+			if err := fun(); err == nil {
+				return nil
+			}
+		}
+	}
+}

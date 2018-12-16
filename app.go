@@ -5,6 +5,8 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/pprof"
 	"time"
 
 	"github.com/luopengift/log"
@@ -15,38 +17,67 @@ import (
 // App framework
 type App struct {
 	*Option
-	exit        chan struct{} //退出信号
 	Config      interface{}
-	onInit      func(*App) error
-	onFlag      func() error
-	Func        Executer
+	onPrepare   Preparer
+	onInit      Initer
+	Main        Executer
 	Threads     []Executer
 	ThreadLoops []ExecuteLooper
+	onExit      Exiter
 }
 
 // New new app instance
 func New(opts ...*Option) *App {
 	app := &App{
 		Option: defaultOption,
-		exit:   make(chan struct{}),
 	}
 	app.Option.Merge(opts...)
 	return app
 }
 
-// Flag flag
-func (app *App) Flag(fun func() error) {
-	app.onFlag = fun
+// BindConfig bind config
+func (app *App) BindConfig(v interface{}) {
+	app.Config = v
+}
+
+// Parpare Preparer interface
+func (app *App) Parpare(prepare Preparer) {
+	app.onPrepare = prepare
+}
+
+// ParpareFunc ParpareFunc
+func (app *App) ParpareFunc(f PrepareFunc) {
+	app.onPrepare = f
+}
+
+// Init Initer interface
+func (app *App) Init(init Initer) {
+	app.onInit = init
+}
+
+// InitFunc init func program global var
+func (app *App) InitFunc(f InitFunc) {
+	app.onInit = f
+}
+
+// Exit Exiter interface
+func (app *App) Exit(exit Exiter) {
+	app.onExit = exit
+}
+
+// ExitFunc init func program global var
+func (app *App) ExitFunc(f ExitFunc) {
+	app.onExit = f
 }
 
 // HandleFunc handle func
 func (app *App) HandleFunc(f Func) {
-	app.Func = f
+	app.Main = f
 }
 
 // MainLoopFunc main loop func
 func (app *App) MainLoopFunc(f Func) {
-	app.Func = f
+	app.Main = f
 }
 
 // ThreadFuncs thread funcs
@@ -101,61 +132,89 @@ func (app *App) ThreadLoopFuncs(funs ...FuncLoop) {
 	}
 }
 
-// Init app instance
-// func (app *App) Init(opts ...*Option) error {
-// 	app.Option.Merge(opts...)
-// 	return nil
-// }
-// Init init program global var
-func (app *App) Init(fun func(app *App) error) {
-	app.onInit = fun
-}
-
 // Run app instance
 func (app *App) Run(ctx context.Context) error {
-	if app.onFlag != nil {
-		if err := app.onFlag(); err != nil {
+	var err error
+	now := time.Now()
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	defer func(now time.Time) {
+		log.Warn("exit: running time=%v", time.Since(now))
+	}(now)
+
+	if app.onPrepare != nil {
+		if err = app.onPrepare.Prepare(); err != nil {
 			return err
 		}
 	}
+
 	c := flag.String("conf", "conf.yml", "(conf)配置文件")
-	//p := flag.Bool("pprof", false, "(pprof)调试模式")
+	d := flag.Bool("debug", false, "(debug)调试模式")
+	p := flag.Bool("pprof", false, "(pprof)性能分析")
 	v := flag.Bool("version", false, "(version)版本")
 	//addr := flag.String("http", ":8888", "(http)地址")
 	flag.Parse()
+	app.Option.Debug = *d
 	if *v {
 		log.ConsoleWithMagenta("%v", version.String())
 		return nil
 	}
 
-	now := time.Now()
-	defer func(now time.Time) {
-		log.Warn("[EXIT]running time=%v", time.Since(now))
-	}(now)
+	if err := app.initLog(); err != nil {
+		return err
+	}
+
+	// pprof
+	if *p {
+		os.MkdirAll("var", 0755)
+		cpu, err := os.Create("pprof/cpu.prof")
+		if err != nil {
+			return err
+		}
+		defer cpu.Close()
+
+		if err = pprof.StartCPUProfile(cpu); err != nil {
+			return err
+		}
+		defer pprof.StopCPUProfile()
+
+		mem, err := os.Create("pprof/mem.prof")
+		if err != nil {
+			return err
+		}
+		defer mem.Close()
+		//mem
+		runtime.GC()
+		if err := pprof.WriteHeapProfile(mem); err != nil {
+			return err
+		}
+	}
 
 	if app.Config != nil {
 		if err := types.ParseConfigFile(app.Config, *c); err != nil {
 			return err
 		}
-	}
-	if err := app.initLog(); err != nil {
-		return err
-	}
-	if app.onInit != nil {
-		if err := app.onInit(app); err != nil {
+		if err := types.ParseConfigFile(app.Option, *c); err != nil {
 			return err
 		}
 	}
-	flag.Parse()
-	if app.Func == nil {
-		return log.Errorf("Func must set!")
+
+	if app.onInit != nil {
+		if err := app.onInit.Init(app); err != nil {
+			return err
+		}
 	}
 
+	log.Display("%v", app)
+
+	if app.Main == nil {
+		return log.Errorf("Main is nil, must set!")
+	}
+	signExit := make(chan struct{})
 	go func(ctx context.Context, app *App) {
-		if err := app.Func.Execute(ctx, app); err != nil {
+		if err := app.Main.Execute(ctx, app); err != nil {
 			log.Error("Execute: %v", err)
 		}
-		app.exit <- struct{}{}
+		signExit <- struct{}{}
 	}(ctx, app)
 
 	if err := app.runThreads(ctx); err != nil {
@@ -165,14 +224,18 @@ func (app *App) Run(ctx context.Context) error {
 		return err
 	}
 
-	sign := make(chan os.Signal)
-	signal.Notify(sign, os.Interrupt, os.Kill)
+	signSystem := make(chan os.Signal)
+	signal.Notify(signSystem, os.Interrupt, os.Kill)
+
 	select {
-	case <-app.exit:
-	case <-sign:
-		log.Warn("[CTRL+C]")
+	case <-signExit:
+	case s := <-signSystem:
+		log.Warn("Get signal: %v", s)
 	case <-ctx.Done():
 		log.Warn("%v", ctx.Err())
+	}
+	if app.onExit != nil {
+		return app.onExit.Exit(ctx, app)
 	}
 	return nil
 }
