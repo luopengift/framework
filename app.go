@@ -17,13 +17,13 @@ import (
 // App framework
 type App struct {
 	*Option
-	Config      interface{}
-	onPrepare   Preparer
-	onInit      Initer
-	Main        Executer
-	Threads     []Executer
-	ThreadLoops []ExecuteLooper
-	onExit      Exiter
+	Config        interface{}
+	onPrepare     Prepare
+	onInit        Init
+	onMain        Main
+	onThreads     []Thread
+	onThreadLoops []Loop
+	onExit        Exiter
 }
 
 // New new app instance
@@ -41,7 +41,7 @@ func (app *App) BindConfig(v interface{}) {
 }
 
 // Parpare Preparer interface
-func (app *App) Parpare(prepare Preparer) {
+func (app *App) Parpare(prepare Prepare) {
 	app.onPrepare = prepare
 }
 
@@ -51,13 +51,23 @@ func (app *App) ParpareFunc(f PrepareFunc) {
 }
 
 // Init Initer interface
-func (app *App) Init(init Initer) {
+func (app *App) Init(init Init) {
 	app.onInit = init
 }
 
 // InitFunc init func program global var
 func (app *App) InitFunc(f InitFunc) {
 	app.onInit = f
+}
+
+// Main interface
+func (app *App) Main(main Main) {
+	app.onMain = main
+}
+
+// MainFunc handle main func
+func (app *App) MainFunc(f MainFunc) {
+	app.onMain = f
 }
 
 // Exit Exiter interface
@@ -70,30 +80,27 @@ func (app *App) ExitFunc(f ExitFunc) {
 	app.onExit = f
 }
 
-// HandleFunc handle func
-func (app *App) HandleFunc(f Func) {
-	app.Main = f
+// Thread interface
+func (app *App) Thread(threads ...Thread) {
+	for _, thread := range threads {
+		app.onThreads = append(app.onThreads, thread)
+	}
 }
 
-// MainLoopFunc main loop func
-func (app *App) MainLoopFunc(f Func) {
-	app.Main = f
-}
-
-// ThreadFuncs thread funcs
-func (app *App) ThreadFuncs(funs ...Func) {
-	for _, fun := range funs {
-		app.Threads = append(app.Threads, fun)
+// ThreadFunc Func init func program global var
+func (app *App) ThreadFunc(fs ...ThreadFunc) {
+	for _, f := range fs {
+		app.onThreads = append(app.onThreads, f)
 	}
 }
 
 func (app *App) runThreads(ctx context.Context) error {
-	for idx, thread := range app.Threads {
+	for idx, thread := range app.onThreads {
 		if thread == nil {
 			return log.Errorf("thread must not nil!")
 		}
-		go func(id int, execute Executer, ctx context.Context, app *App) {
-			if err := execute.Execute(ctx, app); err != nil {
+		go func(id int, execute Thread, ctx context.Context, app *App) {
+			if err := execute.Thread(ctx, app); err != nil {
 				log.Error("Thread[%v]: %v", id, err)
 			}
 		}(idx, thread, ctx, app)
@@ -101,12 +108,26 @@ func (app *App) runThreads(ctx context.Context) error {
 	return nil
 }
 
+// Loop interface
+func (app *App) Loop(loops ...Loop) {
+	for _, loop := range loops {
+		app.onThreadLoops = append(app.onThreadLoops, loop)
+	}
+}
+
+// LoopFunc Func init func program global var
+func (app *App) LoopFunc(fs ...LoopFunc) {
+	for _, f := range fs {
+		app.onThreadLoops = append(app.onThreadLoops, f)
+	}
+}
+
 func (app *App) runThreadLoops(ctx context.Context) error {
-	for idx, threadLoop := range app.ThreadLoops {
+	for idx, threadLoop := range app.onThreadLoops {
 		if threadLoop == nil {
 			return log.Errorf("threadLoop must not nil!")
 		}
-		go func(id int, execute ExecuteLooper, ctx context.Context, app *App) {
+		go func(id int, execute Loop, ctx context.Context, app *App) {
 			var exit bool
 			var err error
 			for !exit {
@@ -115,7 +136,7 @@ func (app *App) runThreadLoops(ctx context.Context) error {
 					log.Error("ThreadLoop[%v]: %v", id, ctx.Err())
 					return
 				default:
-					if exit, err = execute.ExecuteLoop(app); err != nil {
+					if exit, err = execute.Loop(app); err != nil {
 						log.Error("ThreadLoop[%v]: %v", id, err)
 					}
 				}
@@ -123,13 +144,6 @@ func (app *App) runThreadLoops(ctx context.Context) error {
 		}(idx, threadLoop, ctx, app)
 	}
 	return nil
-}
-
-// ThreadLoopFuncs thread loop funcs
-func (app *App) ThreadLoopFuncs(funs ...FuncLoop) {
-	for _, fun := range funs {
-		app.ThreadLoops = append(app.ThreadLoops, fun)
-	}
 }
 
 // Run app instance
@@ -206,12 +220,12 @@ func (app *App) Run(ctx context.Context) error {
 
 	log.Display("%v", app)
 
-	if app.Main == nil {
+	if app.onMain == nil {
 		return log.Errorf("Main is nil, must set!")
 	}
 	signExit := make(chan struct{})
 	go func(ctx context.Context, app *App) {
-		if err := app.Main.Execute(ctx, app); err != nil {
+		if err := app.onMain.Main(ctx, app); err != nil {
 			log.Error("Execute: %v", err)
 		}
 		signExit <- struct{}{}

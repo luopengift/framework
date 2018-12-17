@@ -29,11 +29,10 @@ var t1 = func(app *framework.App) (bool, error) {
 func main() {
 	ctx := context.Background()
 	app := framework.New()
-	app.BindConfig(&config{})
+	//app.BindConfig(&config{})
 
-	app.MainLoopFunc(mainFunc)
-	app.ThreadLoopFuncs(t1)
-
+	app.MainFunc(mainFunc)
+	app.LoopFunc(t1)
 	if err := app.Run(ctx); err != nil {
 		log.Error("%v", err)
 	}

@@ -2,55 +2,68 @@ package framework
 
 import "context"
 
-// Preparer prepare app handler interface
-type Preparer interface {
+// Prepare prepare app handler interface
+type Prepare interface {
 	Prepare() error
 }
 
 // PrepareFunc prepare func
 type PrepareFunc func() error
 
-// Prepare implements Preparer interface
+// Prepare implements Prepar interface
 func (f PrepareFunc) Prepare() error {
 	return f()
 }
 
-// Initer init app handler interface
-type Initer interface {
+// Init init app handler interface
+type Init interface {
 	Init(*App) error
 }
 
 // InitFunc init func
 type InitFunc func(*App) error
 
-// Init implements Initer interface
+// Init implements Init interface
 func (f InitFunc) Init(app *App) error {
 	return f(app)
 }
 
-// Executer execute interface, 用户自行管理携程运行退出等状态, framework仅调起函数
-type Executer interface {
-	Execute(ctx context.Context, app *App) error
+// Main interface
+type Main interface {
+	Main(ctx context.Context, app *App) error
 }
 
-// Func func
-type Func func(ctx context.Context, app *App) error
+// MainFunc main func
+type MainFunc func(ctx context.Context, app *App) error
 
-// Execute execute
-func (f Func) Execute(ctx context.Context, app *App) error {
+// Main implements Main interface
+func (f MainFunc) Main(ctx context.Context, app *App) error {
 	return f(ctx, app)
 }
 
-// ExecuteLooper 协程循环由framework管理
-type ExecuteLooper interface {
-	ExecuteLoop(app *App) (bool, error)
+// Thread interface, 用户自行管理携程运行退出等状态, framework仅调起函数
+type Thread interface {
+	Thread(ctx context.Context, app *App) error
 }
 
-// FuncLoop func
-type FuncLoop func(app *App) (bool, error)
+// ThreadFunc thread func
+type ThreadFunc func(ctx context.Context, app *App) error
 
-// ExecuteLoop ExecuteLoop
-func (f FuncLoop) ExecuteLoop(app *App) (bool, error) {
+// Thread implements Thread interface
+func (f ThreadFunc) Thread(ctx context.Context, app *App) error {
+	return f(ctx, app)
+}
+
+// Loop interface, 协程循环由framework管理
+type Loop interface {
+	Loop(app *App) (exit bool, err error)
+}
+
+// LoopFunc thread loop func
+type LoopFunc func(app *App) (bool, error)
+
+// Loop implements Loop interface
+func (f LoopFunc) Loop(app *App) (bool, error) {
 	return f(app)
 }
 
