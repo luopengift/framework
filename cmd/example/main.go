@@ -50,7 +50,7 @@ func (r *run) Exit(ctx context.Context) error {
 func main() {
 	ctx := context.Background()
 	app := framework.New()
-	app.BindConfig(&config{})
+	//app.BindConfig(&config{})
 	app.Bind(&run{})
 	if err := app.Run(ctx); err != nil {
 		log.Error("%v", err)

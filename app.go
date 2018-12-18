@@ -228,7 +228,7 @@ func (app *App) Run(ctx context.Context) error {
 		}
 	}
 
-	log.Display("%v", app)
+	log.Warn("%v", string(log.Dump(app)))
 
 	if app.onMain == nil {
 		return log.Errorf("Main is nil, must set!")
