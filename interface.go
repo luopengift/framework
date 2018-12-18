@@ -30,11 +30,11 @@ func (f InitFunc) Init(ctx context.Context) error {
 
 // Main interface
 type Main interface {
-	Main(ctx context.Context) error
+	Main(context.Context) error
 }
 
 // MainFunc main func
-type MainFunc func(ctx context.Context) error
+type MainFunc func(context.Context) error
 
 // Main implements Main interface
 func (f MainFunc) Main(ctx context.Context) error {
@@ -43,11 +43,11 @@ func (f MainFunc) Main(ctx context.Context) error {
 
 // Thread interface, 用户自行管理携程运行退出等状态, framework仅调起函数
 type Thread interface {
-	Thread(ctx context.Context) error
+	Thread(context.Context) error
 }
 
 // ThreadFunc thread func
-type ThreadFunc func(ctx context.Context) error
+type ThreadFunc func(context.Context) error
 
 // Thread implements Thread interface
 func (f ThreadFunc) Thread(ctx context.Context) error {
@@ -73,7 +73,7 @@ type Exiter interface {
 }
 
 // ExitFunc func
-type ExitFunc func(ctx context.Context) error
+type ExitFunc func(context.Context) error
 
 // Exit exit
 func (f ExitFunc) Exit(ctx context.Context) error {
