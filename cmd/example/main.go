@@ -13,11 +13,28 @@ type config struct {
 	ReportURL string `json:"report_url" yaml:"report_url"`
 }
 
-var mainFunc = func(ctx context.Context, app *framework.App) error {
+type run struct{}
+
+// Prepare prepare
+func (r *run) Prepare(ctx context.Context) error {
+	return nil
+}
+
+// Init init
+func (r *run) Init(ctx context.Context) error {
+	return nil
+}
+
+func (r *run) Main(ctx context.Context) error {
 	time.Sleep(10 * time.Second)
 	return nil
 }
-var t1 = func(app *framework.App) (bool, error) {
+
+func (r *run) Thread(ctx context.Context) error {
+	return nil
+}
+
+func (r *run) Loop(ctx context.Context) (bool, error) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -26,13 +43,15 @@ var t1 = func(app *framework.App) (bool, error) {
 	return false, nil
 }
 
+func (r *run) Exit(ctx context.Context) error {
+	return nil
+}
+
 func main() {
 	ctx := context.Background()
 	app := framework.New()
-	//app.BindConfig(&config{})
-
-	app.MainFunc(mainFunc)
-	app.LoopFunc(t1)
+	app.BindConfig(&config{})
+	app.Bind(&run{})
 	if err := app.Run(ctx); err != nil {
 		log.Error("%v", err)
 	}

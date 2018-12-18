@@ -17,7 +17,7 @@ import (
 // App framework
 type App struct {
 	*Option
-	Config        interface{}
+	config        interface{}
 	onPrepare     Prepare
 	onInit        Init
 	onMain        Main
@@ -35,18 +35,28 @@ func New(opts ...*Option) *App {
 	return app
 }
 
-// BindConfig bind config
-func (app *App) BindConfig(v interface{}) {
-	app.Config = v
+// Bind bind runner interface
+func (app *App) Bind(run Runner) {
+	app.PrepareFunc(run.Prepare)
+	app.InitFunc(run.Init)
+	app.MainFunc(run.Main)
+	app.ThreadFunc(run.Thread)
+	app.LoopFunc(run.Loop)
+	app.ExitFunc(run.Exit)
 }
 
-// Parpare Preparer interface
-func (app *App) Parpare(prepare Prepare) {
+// BindConfig bind config
+func (app *App) BindConfig(v interface{}) {
+	app.config = v
+}
+
+// Prepare Preparer interface
+func (app *App) Prepare(prepare Prepare) {
 	app.onPrepare = prepare
 }
 
-// ParpareFunc ParpareFunc
-func (app *App) ParpareFunc(f PrepareFunc) {
+// PrepareFunc ParpareFunc
+func (app *App) PrepareFunc(f PrepareFunc) {
 	app.onPrepare = f
 }
 
@@ -99,11 +109,11 @@ func (app *App) runThreads(ctx context.Context) error {
 		if thread == nil {
 			return log.Errorf("thread must not nil!")
 		}
-		go func(id int, execute Thread, ctx context.Context, app *App) {
-			if err := execute.Thread(ctx, app); err != nil {
+		go func(ctx context.Context, id int, execute Thread) {
+			if err := execute.Thread(ctx); err != nil {
 				log.Error("Thread[%v]: %v", id, err)
 			}
-		}(idx, thread, ctx, app)
+		}(ctx, idx, thread)
 	}
 	return nil
 }
@@ -127,7 +137,7 @@ func (app *App) runThreadLoops(ctx context.Context) error {
 		if threadLoop == nil {
 			return log.Errorf("threadLoop must not nil!")
 		}
-		go func(id int, execute Loop, ctx context.Context, app *App) {
+		go func(ctx context.Context, id int, execute Loop) {
 			var exit bool
 			var err error
 			for !exit {
@@ -136,12 +146,12 @@ func (app *App) runThreadLoops(ctx context.Context) error {
 					log.Error("ThreadLoop[%v]: %v", id, ctx.Err())
 					return
 				default:
-					if exit, err = execute.Loop(app); err != nil {
+					if exit, err = execute.Loop(ctx); err != nil {
 						log.Error("ThreadLoop[%v]: %v", id, err)
 					}
 				}
 			}
-		}(idx, threadLoop, ctx, app)
+		}(ctx, idx, threadLoop)
 	}
 	return nil
 }
@@ -156,7 +166,7 @@ func (app *App) Run(ctx context.Context) error {
 	}(now)
 
 	if app.onPrepare != nil {
-		if err = app.onPrepare.Prepare(); err != nil {
+		if err = app.onPrepare.Prepare(ctx); err != nil {
 			return err
 		}
 	}
@@ -203,8 +213,8 @@ func (app *App) Run(ctx context.Context) error {
 		}
 	}
 
-	if app.Config != nil {
-		if err := types.ParseConfigFile(app.Config, *c); err != nil {
+	if app.config != nil {
+		if err := types.ParseConfigFile(app.config, *c); err != nil {
 			return err
 		}
 		if err := types.ParseConfigFile(app.Option, *c); err != nil {
@@ -213,7 +223,7 @@ func (app *App) Run(ctx context.Context) error {
 	}
 
 	if app.onInit != nil {
-		if err := app.onInit.Init(app); err != nil {
+		if err := app.onInit.Init(ctx); err != nil {
 			return err
 		}
 	}
@@ -224,12 +234,14 @@ func (app *App) Run(ctx context.Context) error {
 		return log.Errorf("Main is nil, must set!")
 	}
 	signExit := make(chan struct{})
-	go func(ctx context.Context, app *App) {
-		if err := app.onMain.Main(ctx, app); err != nil {
-			log.Error("Execute: %v", err)
+	go func(ctx context.Context) {
+		if app.onMain != nil {
+			if err := app.onMain.Main(ctx); err != nil {
+				log.Error("MainThread: %v", err)
+			}
 		}
 		signExit <- struct{}{}
-	}(ctx, app)
+	}(ctx)
 
 	if err := app.runThreads(ctx); err != nil {
 		return err
@@ -249,7 +261,7 @@ func (app *App) Run(ctx context.Context) error {
 		log.Warn("%v", ctx.Err())
 	}
 	if app.onExit != nil {
-		return app.onExit.Exit(ctx, app)
+		return app.onExit.Exit(ctx)
 	}
 	return nil
 }
