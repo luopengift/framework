@@ -1,6 +1,9 @@
 package framework
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // Runner interface, TODO
 type Runner interface {
@@ -28,7 +31,7 @@ func (r *Run) Init(ctx context.Context) error {
 
 // Main main
 func (r *Run) Main(ctx context.Context) error {
-	return nil
+	return fmt.Errorf("must rewrite Main Func")
 }
 
 // Thread thread
@@ -37,7 +40,7 @@ func (r *Run) Thread(ctx context.Context) error {
 }
 
 // Loop loop
-func (r *Run) Loop() (bool, error) {
+func (r *Run) Loop(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
@@ -46,4 +49,4 @@ func (r *Run) Exit(ctx context.Context) error {
 	return nil
 }
 
-var run = &Run{}
+var run Runner = &Run{}

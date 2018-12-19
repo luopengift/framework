@@ -5,6 +5,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/luopengift/log"
 )
 
 func httpPost(url string, reader io.Reader) error {
@@ -16,8 +18,8 @@ func httpPost(url string, reader io.Reader) error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
-	fmt.Println(body)
+	defer resp.Body.Close()
+	log.Info(string(body))
 	return nil
 }
 
