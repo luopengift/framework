@@ -3,6 +3,7 @@ package framework
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
@@ -24,6 +25,7 @@ type App struct {
 	onThreads     []Thread
 	onThreadLoops []Loop
 	onExit        Exiter
+	errChan       chan error
 }
 
 // New new app instance
@@ -33,6 +35,26 @@ func New(opts ...*Option) *App {
 	}
 	app.Option.Merge(opts...)
 	return app
+}
+
+func (app *App) init() {
+	app.errChan = make(chan error, 100)
+}
+
+func (app *App) Error(format string, v ...interface{}) {
+	app.errChan <- fmt.Errorf(format, v...)
+}
+
+func (app *App) error() {
+	for {
+		select {
+		case err, ok := <-app.errChan:
+			if !ok {
+				return
+			}
+			log.Error("%v", err)
+		}
+	}
 }
 
 // Bind bind runner interface
@@ -105,15 +127,20 @@ func (app *App) ThreadFunc(fs ...ThreadFunc) {
 }
 
 func (app *App) runThreads(ctx context.Context) error {
-	for idx, thread := range app.onThreads {
+	for id, thread := range app.onThreads {
 		if thread == nil {
 			return log.Errorf("thread must not nil!")
 		}
 		go func(ctx context.Context, id int, execute Thread) {
+			defer func() {
+				if err := recover(); err != nil {
+					log.Fatal("Thread[%v] Panic: %v", id, err)
+				}
+			}()
 			if err := execute.Thread(ctx); err != nil {
 				log.Error("Thread[%v]: %v", id, err)
 			}
-		}(ctx, idx, thread)
+		}(ctx, id, thread)
 	}
 	return nil
 }
@@ -133,11 +160,19 @@ func (app *App) LoopFunc(fs ...LoopFunc) {
 }
 
 func (app *App) runThreadLoops(ctx context.Context) error {
-	for idx, threadLoop := range app.onThreadLoops {
+	for id, threadLoop := range app.onThreadLoops {
 		if threadLoop == nil {
 			return log.Errorf("threadLoop must not nil!")
 		}
 		go func(ctx context.Context, id int, execute Loop) {
+			thread := func(ctx context.Context, execute Loop) (bool, error) {
+				defer func() {
+					if err := recover(); err != nil {
+						log.Fatal("ThreadLoop[%v] Panic: %v", id, err)
+					}
+				}()
+				return execute.Loop(ctx)
+			}
 			var exit bool
 			var err error
 			for !exit {
@@ -146,12 +181,12 @@ func (app *App) runThreadLoops(ctx context.Context) error {
 					log.Error("ThreadLoop[%v]: %v", id, ctx.Err())
 					return
 				default:
-					if exit, err = execute.Loop(ctx); err != nil {
+					if exit, err = thread(ctx, execute); err != nil {
 						log.Error("ThreadLoop[%v]: %v", id, err)
 					}
 				}
 			}
-		}(ctx, idx, threadLoop)
+		}(ctx, id, threadLoop)
 	}
 	return nil
 }
@@ -161,6 +196,7 @@ func (app *App) Run(ctx context.Context) error {
 	var err error
 	now := time.Now()
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	app.init()
 	defer func(now time.Time) {
 		log.Warn("exit: running time=%v", time.Since(now))
 	}(now)
@@ -235,6 +271,11 @@ func (app *App) Run(ctx context.Context) error {
 	}
 	signExit := make(chan struct{})
 	go func(ctx context.Context) {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Fatal("MainThread panic: %v", err)
+			}
+		}()
 		if app.onMain != nil {
 			if err := app.onMain.Main(ctx); err != nil {
 				log.Error("MainThread: %v", err)

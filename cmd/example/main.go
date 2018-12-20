@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/luopengift/framework"
@@ -31,15 +30,12 @@ func (r *run) Main(ctx context.Context) error {
 }
 
 func (r *run) Thread(ctx context.Context) error {
+	panic("ddd")
 	return nil
 }
 
 func (r *run) Loop(ctx context.Context) (bool, error) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-		}
-	}()
+	//panic("Loop")
 	return false, nil
 }
 
