@@ -8,6 +8,9 @@ import (
 )
 
 func (app *App) initLog() error {
+	if err := os.MkdirAll(filepath.Dir(app.Option.LogPath), 0755); err != nil {
+		return err
+	}
 	file := log.NewFile(app.Option.LogPath)
 	file.SetMaxBytes(app.Option.MaxBytes)
 	file.SetMaxIndex(app.Option.MaxBackupIndex)
@@ -18,5 +21,5 @@ func (app *App) initLog() error {
 		log.SetLevel(log.INFO)
 		log.SetOutput(file)
 	}
-	return os.MkdirAll(filepath.Dir(app.Option.LogPath), 0755)
+	return nil
 }

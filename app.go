@@ -218,7 +218,20 @@ func (app *App) Run(ctx context.Context) error {
 		log.ConsoleWithMagenta("%v", version.String())
 		return nil
 	}
-
+	ok, err := PathExist(*c)
+	if err != nil {
+		return err
+	}
+	if ok {
+		if app.config != nil {
+			if err := types.ParseConfigFile(app.config, *c); err != nil {
+				return err
+			}
+		}
+		if err := types.ParseConfigFile(app.Option, *c); err != nil {
+			return err
+		}
+	}
 	if err := app.initLog(); err != nil {
 		return err
 	}
@@ -245,15 +258,6 @@ func (app *App) Run(ctx context.Context) error {
 		//mem
 		runtime.GC()
 		if err := pprof.WriteHeapProfile(mem); err != nil {
-			return err
-		}
-	}
-
-	if app.config != nil {
-		if err := types.ParseConfigFile(app.config, *c); err != nil {
-			return err
-		}
-		if err := types.ParseConfigFile(app.Option, *c); err != nil {
 			return err
 		}
 	}
