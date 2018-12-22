@@ -36,7 +36,5 @@ func main() {
 	ctx := context.Background()
 	app := framework.New()
 	app.Bind(&runner{})
-	if err := app.Run(ctx); err != nil {
-		log.Error("%v", err)
-	}
+	app.Run(ctx)
 }

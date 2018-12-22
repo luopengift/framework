@@ -2,10 +2,10 @@ package framework
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"time"
@@ -192,7 +192,13 @@ func (app *App) runThreadLoops(ctx context.Context) error {
 }
 
 // Run app instance
-func (app *App) Run(ctx context.Context) error {
+func (app *App) Run(ctx context.Context) {
+	if err := app.execute(ctx); err != nil {
+		log.Error("%v", err)
+	}
+}
+
+func (app *App) execute(ctx context.Context) error {
 	var err error
 	now := time.Now()
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -207,39 +213,46 @@ func (app *App) Run(ctx context.Context) error {
 		}
 	}
 
-	c := flag.String("conf", "conf.yml", "(conf)配置文件")
-	d := flag.Bool("debug", false, "(debug)调试模式")
-	p := flag.Bool("pprof", false, "(pprof)性能分析")
-	v := flag.Bool("version", false, "(version)版本")
-	//addr := flag.String("http", ":8888", "(http)地址")
-	flag.Parse()
-	app.Option.Debug = *d
-	if *v {
+	envOpt, err := newEnvOpt()
+	if err != nil {
+		return err
+	}
+	argsOpt := newArgsOpt()
+	app.Option.Merge(envOpt, argsOpt) // 仅为了合并configPath供配置文件使用
+
+	if app.Option.Version {
 		log.ConsoleWithMagenta("%v", version.String())
 		return nil
 	}
-	ok, err := PathExist(*c)
+	ok, err := PathExist(app.Option.ConfigPath)
 	if err != nil {
 		return err
 	}
 	if ok {
 		if app.config != nil {
-			if err := types.ParseConfigFile(app.config, *c); err != nil {
+			if err := types.ParseConfigFile(app.config, app.Option.ConfigPath); err != nil {
 				return err
 			}
 		}
-		if err := types.ParseConfigFile(app.Option, *c); err != nil {
+		if err := types.ParseConfigFile(app.Option, app.Option.ConfigPath); err != nil {
 			return err
 		}
 	}
+	app.Option.Merge(envOpt, argsOpt) // 修改被配置文件改掉配置
+
 	if err := app.initLog(); err != nil {
 		return err
 	}
-
+	// http
+	if app.Option.Httpd != emptyOption.Httpd {
+		go httpd(app.Option.Httpd)
+	}
 	// pprof
-	if *p {
-		os.MkdirAll("var", 0755)
-		cpu, err := os.Create("pprof/cpu.prof")
+	if app.Option.PprofPath != "" {
+		if err = os.MkdirAll(app.Option.PprofPath, 0755); err != nil {
+			return err
+		}
+		cpu, err := os.Create(filepath.Join(app.Option.PprofPath, "cpu.prof"))
 		if err != nil {
 			return err
 		}
@@ -250,7 +263,7 @@ func (app *App) Run(ctx context.Context) error {
 		}
 		defer pprof.StopCPUProfile()
 
-		mem, err := os.Create("pprof/mem.prof")
+		mem, err := os.Create(filepath.Join(app.Option.PprofPath, "pprof/mem.prof"))
 		if err != nil {
 			return err
 		}

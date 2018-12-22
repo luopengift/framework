@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"time"
 
 	"github.com/luopengift/framework"
-	"github.com/luopengift/log"
 )
 
 type config struct {
@@ -25,12 +23,13 @@ func (r *run) Init(ctx context.Context) error {
 }
 
 func (r *run) Main(ctx context.Context) error {
-	time.Sleep(10 * time.Second)
+	//time.Sleep(10 * time.Second)
+	select {}
 	return nil
 }
 
 func (r *run) Thread(ctx context.Context) error {
-	panic("ddd")
+	//panic("ddd")
 	return nil
 }
 
@@ -48,7 +47,5 @@ func main() {
 	app := framework.New()
 	//app.BindConfig(&config{})
 	app.Bind(&run{})
-	if err := app.Run(ctx); err != nil {
-		log.Error("%v", err)
-	}
+	app.Run(ctx)
 }

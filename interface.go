@@ -10,7 +10,7 @@ type Prepare interface {
 // PrepareFunc prepare func
 type PrepareFunc func(context.Context) error
 
-// Prepare implements Prepar interface
+// Prepare implements Prepare interface
 func (f PrepareFunc) Prepare(ctx context.Context) error {
 	return f(ctx)
 }

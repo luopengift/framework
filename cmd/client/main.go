@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/luopengift/framework"
-	"github.com/luopengift/log"
 )
 
 func main() {
@@ -15,10 +14,9 @@ func main() {
 	app := framework.New()
 	app.MainFunc(Main)
 	app.ThreadFunc(reportThread)
-	if err := app.Run(ctx); err != nil {
-		log.Error("%v", err)
-	}
+	app.Run(ctx)
 }
+
 func reportThread(ctx context.Context) error {
 	for {
 		b, err := json.Marshal(framework.NewReport("client-test"))
