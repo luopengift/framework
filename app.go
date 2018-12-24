@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"time"
 
@@ -136,7 +137,7 @@ func (app *App) runThreads(ctx context.Context) error {
 		go func(ctx context.Context, id int, execute Thread) {
 			defer func() {
 				if err := recover(); err != nil {
-					log.Fatal("Thread[%v] Panic: %v", id, err)
+					log.Fatal("Thread[%v] %v\n%v", id, err, string(debug.Stack()))
 				}
 			}()
 			if err := execute.Thread(ctx); err != nil {
@@ -170,7 +171,7 @@ func (app *App) runThreadLoops(ctx context.Context) error {
 			thread := func(ctx context.Context, execute Loop) (bool, error) {
 				defer func() {
 					if err := recover(); err != nil {
-						log.Fatal("ThreadLoop[%v] Panic: %v", id, err)
+						log.Fatal("ThreadLoop[%v] %v\n%v", id, err, string(debug.Stack()))
 					}
 				}()
 				return execute.Loop(ctx)
@@ -237,6 +238,9 @@ func (app *App) execute(ctx context.Context) error {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	app.init()
 	defer func(now time.Time) {
+		if err := recover(); err != nil {
+			log.Fatal("%v\n%v", err, string(debug.Stack()))
+		}
 		log.Warn("exit: running time=%v", time.Since(now))
 	}(now)
 
@@ -290,7 +294,7 @@ func (app *App) execute(ctx context.Context) error {
 		}
 	}
 
-	log.Warn("%v", string(log.Dump(app)))
+	log.Warn("%#v", app)
 
 	if app.onMain == nil {
 		return log.Errorf("Main is nil, must set!")
@@ -299,7 +303,7 @@ func (app *App) execute(ctx context.Context) error {
 	go func(ctx context.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Fatal("MainThread panic: %v", err)
+				log.Fatal("MainThread: %v\n%v", err, string(debug.Stack()))
 			}
 		}()
 		if app.onMain != nil {
