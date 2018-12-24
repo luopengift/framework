@@ -10,6 +10,7 @@ import (
 	"runtime/pprof"
 	"time"
 
+	"github.com/luopengift/gohttp"
 	"github.com/luopengift/log"
 	"github.com/luopengift/types"
 	"github.com/luopengift/version"
@@ -26,6 +27,7 @@ type App struct {
 	onThreadLoops []Loop
 	onExit        Exiter
 	errChan       chan error
+	*gohttp.Application
 }
 
 // New new app instance
@@ -191,6 +193,7 @@ func (app *App) runThreadLoops(ctx context.Context) error {
 	return nil
 }
 
+// LoadConfig loading config step by step
 func (app *App) LoadConfig() error {
 	envOpt, err := newEnvOpt()
 	if err != nil {
@@ -251,9 +254,8 @@ func (app *App) execute(ctx context.Context) error {
 		return err
 	}
 	// http
-	if app.Option.Httpd != emptyOption.Httpd {
-		go httpd(app.Option.Httpd)
-	}
+	app.initHttpd()
+
 	// pprof
 	if app.Option.PprofPath != "" {
 		if err = os.MkdirAll(app.Option.PprofPath, 0755); err != nil {
