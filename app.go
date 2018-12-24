@@ -191,28 +191,7 @@ func (app *App) runThreadLoops(ctx context.Context) error {
 	return nil
 }
 
-// Run app instance
-func (app *App) Run(ctx context.Context) {
-	if err := app.execute(ctx); err != nil {
-		log.Error("%v", err)
-	}
-}
-
-func (app *App) execute(ctx context.Context) error {
-	var err error
-	now := time.Now()
-	runtime.GOMAXPROCS(runtime.NumCPU())
-	app.init()
-	defer func(now time.Time) {
-		log.Warn("exit: running time=%v", time.Since(now))
-	}(now)
-
-	if app.onPrepare != nil {
-		if err = app.onPrepare.Prepare(ctx); err != nil {
-			return err
-		}
-	}
-
+func (app *App) LoadConfig() error {
 	envOpt, err := newEnvOpt()
 	if err != nil {
 		return err
@@ -239,6 +218,34 @@ func (app *App) execute(ctx context.Context) error {
 		}
 	}
 	app.Option.Merge(envOpt, argsOpt) // 修改被配置文件改掉配置
+	return err
+}
+
+// Run app instance
+func (app *App) Run(ctx context.Context) {
+	if err := app.execute(ctx); err != nil {
+		log.Error("%v", err)
+	}
+}
+
+func (app *App) execute(ctx context.Context) error {
+	var err error
+	now := time.Now()
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	app.init()
+	defer func(now time.Time) {
+		log.Warn("exit: running time=%v", time.Since(now))
+	}(now)
+
+	if app.onPrepare != nil {
+		if err = app.onPrepare.Prepare(ctx); err != nil {
+			return err
+		}
+	}
+
+	if err = app.LoadConfig(); err != nil {
+		return err
+	}
 
 	if err := app.initLog(); err != nil {
 		return err

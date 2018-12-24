@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/luopengift/framework"
 )
@@ -23,8 +24,8 @@ func (r *run) Init(ctx context.Context) error {
 }
 
 func (r *run) Main(ctx context.Context) error {
-	//time.Sleep(10 * time.Second)
-	select {}
+	time.Sleep(60 * time.Second)
+	//select {}
 	return nil
 }
 
