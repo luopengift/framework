@@ -12,14 +12,14 @@ func newArgsOpt() *Option {
 	debug := flag.Bool("debug", false, "(debug)调试模式")
 	pprof := flag.String("pprof", "", "(pprof)性能分析路径")
 	version := flag.Bool("version", false, "(version)版本")
-	http := flag.String("http", "", "(httpd)IP:端口")
+	httpd := flag.String("httpd", "", "(httpd)IP:端口")
 	flag.Parse()
 	return &Option{
 		Version:    *version,
 		Debug:      *debug,
 		PprofPath:  *pprof,
 		ConfigPath: *conf,
-		Httpd:      *http,
+		Httpd:      *httpd,
 	}
 }
 
