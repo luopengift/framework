@@ -14,7 +14,7 @@ func (app *App) initHttpd() {
 	if app.Option.Httpd == emptyOption.Httpd {
 		return
 	}
-	httpd := gohttp.Init()
+	httpd = gohttp.Init()
 	httpd.Log = log.GetLogger("__ROOT__")
 	httpd.RouteStdHandler("^/metrics$", promhttp.Handler())
 	go httpd.Run(app.Option.Httpd)
