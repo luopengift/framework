@@ -11,7 +11,6 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/luopengift/gohttp"
 	"github.com/luopengift/log"
 	"github.com/luopengift/types"
 	"github.com/luopengift/version"
@@ -28,7 +27,6 @@ type App struct {
 	onThreadLoops []Loop
 	onExit        Exiter
 	errChan       chan error
-	*gohttp.Application
 }
 
 // New new app instance
@@ -294,7 +292,7 @@ func (app *App) execute(ctx context.Context) error {
 		}
 	}
 
-	log.Warn("%#v", app)
+	log.Warn("%v", string(log.Dump(app)))
 
 	if app.onMain == nil {
 		return log.Errorf("Main is nil, must set!")
