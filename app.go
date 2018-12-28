@@ -303,13 +303,13 @@ func (app *App) execute(ctx context.Context) error {
 			if err := recover(); err != nil {
 				log.Fatal("MainThread: %v\n%v", err, string(debug.Stack()))
 			}
+			signExit <- struct{}{}
 		}()
 		if app.onMain != nil {
 			if err := app.onMain.Main(ctx); err != nil {
 				log.Error("MainThread: %v", err)
 			}
 		}
-		signExit <- struct{}{}
 	}(ctx)
 
 	if err := app.runThreads(ctx); err != nil {
