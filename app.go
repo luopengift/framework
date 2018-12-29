@@ -201,10 +201,6 @@ func (app *App) LoadConfig() error {
 	argsOpt := newArgsOpt()
 	app.Option.Merge(envOpt, argsOpt) // 仅为了合并configPath供配置文件使用
 
-	if app.Option.Version {
-		log.ConsoleWithMagenta("%v", version.String())
-		return nil
-	}
 	ok, err := PathExist(app.Option.ConfigPath)
 	if err != nil {
 		return err
@@ -250,6 +246,11 @@ func (app *App) execute(ctx context.Context) error {
 
 	if err = app.LoadConfig(); err != nil {
 		return err
+	}
+
+	if app.Option.Version {
+		log.ConsoleWithMagenta("%v", version.String())
+		return nil
 	}
 
 	if err := app.initLog(); err != nil {
