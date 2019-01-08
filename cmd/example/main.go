@@ -44,9 +44,6 @@ func (r *run) Exit(ctx context.Context) error {
 }
 
 func main() {
-	ctx := context.Background()
-	app := framework.New()
-	//app.BindConfig(&config{})
-	app.Bind(&run{})
-	app.Run(ctx)
+	framework.Bind(&run{})
+	framework.Run()
 }

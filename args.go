@@ -10,6 +10,7 @@ import (
 func newArgsOpt() *Option {
 	conf := flag.String("conf", "conf.yml", "(conf)配置文件")
 	debug := flag.Bool("debug", false, "(debug)调试模式")
+	tz := flag.String("tz", "Asia/Shanghai", "(timezone)时区")
 	pprof := flag.String("pprof", "", "(pprof)性能分析路径")
 	version := flag.Bool("version", false, "(version)版本")
 	httpd := flag.String("httpd", "", "(httpd)IP:端口")
@@ -17,6 +18,7 @@ func newArgsOpt() *Option {
 	return &Option{
 		Version:    *version,
 		Debug:      *debug,
+		Tz:         *tz,
 		PprofPath:  *pprof,
 		ConfigPath: *conf,
 		Httpd:      *httpd,
@@ -33,6 +35,7 @@ func newEnvOpt() (*Option, error) {
 			return nil, err
 		}
 	}
+	opt.Tz = os.Getenv("TZ")
 	opt.LogPath = os.Getenv("LOG_PATH")
 	maxBytes := os.Getenv("MAX_BYTES")
 	if maxBytes != "" {

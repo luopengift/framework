@@ -17,10 +17,10 @@ type Report struct {
 }
 
 // NewReport new report instance
-func NewReport(name string) *Report {
+func (app *App) NewReport() *Report {
 	return &Report{
-		ID:   "xxxx-xxxx-xxxx",
-		Name: name,
+		ID:   app.ID,
+		Name: app.Name,
 		Time: time.Now(),
 	}
 }

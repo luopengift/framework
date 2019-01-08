@@ -15,38 +15,37 @@ type Runner interface {
 	Exit(context.Context) error
 }
 
-// Run inplements Runner interface
-type Run struct {
-}
+// R inplements Runner interface
+type R struct{}
 
 // Prepare prepare
-func (r *Run) Prepare(ctx context.Context) error {
+func (r *R) Prepare(ctx context.Context) error {
 	return nil
 }
 
 // Init init
-func (r *Run) Init(ctx context.Context) error {
+func (r *R) Init(ctx context.Context) error {
 	return nil
 }
 
 // Main main
-func (r *Run) Main(ctx context.Context) error {
+func (r *R) Main(ctx context.Context) error {
 	return fmt.Errorf("must rewrite Main Func")
 }
 
 // Thread thread
-func (r *Run) Thread(ctx context.Context) error {
+func (r *R) Thread(ctx context.Context) error {
 	return nil
 }
 
 // Loop loop
-func (r *Run) Loop(ctx context.Context) (bool, error) {
+func (r *R) Loop(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
 // Exit exit
-func (r *Run) Exit(ctx context.Context) error {
+func (r *R) Exit(ctx context.Context) error {
 	return nil
 }
 
-var run Runner = &Run{}
+var run Runner = &R{}

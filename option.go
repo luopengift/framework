@@ -18,6 +18,7 @@ import (
 type Option struct {
 	Version        bool   `json:"version" yaml:"version" env:"VERSION"`                            // 程序信息
 	Debug          bool   `json:"debug" yaml:"debug" env:"DEBUG"`                                  // 控制台日志, Level=Debug
+	Tz             string `json:"tz" yaml:"tz" env:"TZ"`                                           // 时区, 默认Asia/Shanghai
 	PprofPath      string `json:"pprof_path" yaml:"pprof_path" env:"PPROF_PATH"`                   // 性能分析路径
 	ConfigPath     string `json:"config_path" yaml:"config_path" env:"CONFIG_PATH"`                // 配置文件路径
 	LogPath        string `json:"log_path" yaml:"log_path" env:"LOG_PATH"`                         // 日志文件路径
@@ -72,6 +73,9 @@ func (opt *Option) mergeIn(o *Option) {
 	if o.Debug != emptyOption.Debug {
 		opt.Debug = o.Debug
 	}
+	if o.Tz != emptyOption.Tz {
+		opt.Tz = o.Tz
+	}
 	if o.PprofPath != emptyOption.PprofPath {
 		opt.PprofPath = o.PprofPath
 	}
@@ -105,6 +109,7 @@ func (opt *Option) Merge(opts ...*Option) {
 var (
 	emptyOption   = &Option{}
 	defaultOption = &Option{
+		Tz:             "Asia/Shanghai",
 		LogPath:        "logs/%Y-%M-%D.log",
 		MaxBytes:       200 * 1024 * 1024, //200M
 		MaxBackupIndex: 50,

@@ -16,15 +16,22 @@ import (
 	"github.com/luopengift/version"
 )
 
+// var default var
+var (
+	TimeZone *time.Location
+)
+
 // App framework
 type App struct {
 	*Option
+	Name          string `json:"name" yaml:"name"`
+	ID            string `json:"id" yaml:"id"`
 	config        interface{}
-	onPrepare     Prepare
-	onInit        Init
-	onMain        Main
-	onThreads     []Thread
-	onThreadLoops []Loop
+	onPrepare     Preparer
+	onInit        Initer
+	onMain        Mainer
+	onThreads     []Threader
+	onThreadLoops []Looper
 	onExit        Exiter
 	errChan       chan error
 }
@@ -74,32 +81,32 @@ func (app *App) BindConfig(v interface{}) {
 }
 
 // Prepare Preparer interface
-func (app *App) Prepare(prepare Prepare) {
+func (app *App) Prepare(prepare Preparer) {
 	app.onPrepare = prepare
 }
 
 // PrepareFunc ParpareFunc
-func (app *App) PrepareFunc(f PrepareFunc) {
+func (app *App) PrepareFunc(f PreparerFunc) {
 	app.onPrepare = f
 }
 
 // Init Initer interface
-func (app *App) Init(init Init) {
+func (app *App) Init(init Initer) {
 	app.onInit = init
 }
 
 // InitFunc init func program global var
-func (app *App) InitFunc(f InitFunc) {
+func (app *App) InitFunc(f IniterFunc) {
 	app.onInit = f
 }
 
 // Main interface
-func (app *App) Main(main Main) {
+func (app *App) Main(main Mainer) {
 	app.onMain = main
 }
 
 // MainFunc handle main func
-func (app *App) MainFunc(f MainFunc) {
+func (app *App) MainFunc(f MainerFunc) {
 	app.onMain = f
 }
 
@@ -109,19 +116,19 @@ func (app *App) Exit(exit Exiter) {
 }
 
 // ExitFunc init func program global var
-func (app *App) ExitFunc(f ExitFunc) {
+func (app *App) ExitFunc(f ExiterFunc) {
 	app.onExit = f
 }
 
 // Thread interface
-func (app *App) Thread(threads ...Thread) {
+func (app *App) Thread(threads ...Threader) {
 	for _, thread := range threads {
 		app.onThreads = append(app.onThreads, thread)
 	}
 }
 
 // ThreadFunc Func init func program global var
-func (app *App) ThreadFunc(fs ...ThreadFunc) {
+func (app *App) ThreadFunc(fs ...ThreaderFunc) {
 	for _, f := range fs {
 		app.onThreads = append(app.onThreads, f)
 	}
@@ -132,7 +139,7 @@ func (app *App) runThreads(ctx context.Context) error {
 		if thread == nil {
 			return log.Errorf("thread must not nil!")
 		}
-		go func(ctx context.Context, id int, execute Thread) {
+		go func(ctx context.Context, id int, execute Threader) {
 			defer func() {
 				if err := recover(); err != nil {
 					log.Fatal("Thread[%v] %v\n%v", id, err, string(debug.Stack()))
@@ -147,14 +154,14 @@ func (app *App) runThreads(ctx context.Context) error {
 }
 
 // Loop interface
-func (app *App) Loop(loops ...Loop) {
+func (app *App) Loop(loops ...Looper) {
 	for _, loop := range loops {
 		app.onThreadLoops = append(app.onThreadLoops, loop)
 	}
 }
 
 // LoopFunc Func init func program global var
-func (app *App) LoopFunc(fs ...LoopFunc) {
+func (app *App) LoopFunc(fs ...LooperFunc) {
 	for _, f := range fs {
 		app.onThreadLoops = append(app.onThreadLoops, f)
 	}
@@ -165,8 +172,8 @@ func (app *App) runThreadLoops(ctx context.Context) error {
 		if threadLoop == nil {
 			return log.Errorf("threadLoop must not nil!")
 		}
-		go func(ctx context.Context, id int, execute Loop) {
-			thread := func(ctx context.Context, execute Loop) (bool, error) {
+		go func(ctx context.Context, id int, execute Looper) {
+			thread := func(ctx context.Context, execute Looper) (bool, error) {
 				defer func() {
 					if err := recover(); err != nil {
 						log.Fatal("ThreadLoop[%v] %v\n%v", id, err, string(debug.Stack()))
@@ -214,8 +221,15 @@ func (app *App) LoadConfig() error {
 		if err := types.ParseConfigFile(app.Option, app.Option.ConfigPath); err != nil {
 			return err
 		}
+		if err := types.ParseConfigFile(app, app.Option.ConfigPath); err != nil {
+			return err
+		}
 	}
 	app.Option.Merge(envOpt, argsOpt) // 修改被配置文件改掉配置
+	if app.Name == "" {
+		app.Name = filepath.Base(os.Args[0])
+	}
+	TimeZone, err = time.LoadLocation(app.Option.Tz)
 	return err
 }
 
@@ -256,6 +270,15 @@ func (app *App) execute(ctx context.Context) error {
 	if err := app.initLog(); err != nil {
 		return err
 	}
+	log.Info("[%s] run...", app.Name)
+
+	if app.onInit != nil {
+		if err := app.onInit.Init(ctx); err != nil {
+			return err
+		}
+	}
+	log.Warn("%v", string(log.Dump(app)))
+
 	// http
 	app.initHttpd()
 
@@ -287,24 +310,16 @@ func (app *App) execute(ctx context.Context) error {
 		}
 	}
 
-	if app.onInit != nil {
-		if err := app.onInit.Init(ctx); err != nil {
-			return err
-		}
-	}
-
-	log.Warn("%v", string(log.Dump(app)))
-
 	if app.onMain == nil {
 		return log.Errorf("Main is nil, must set!")
 	}
-	signExit := make(chan struct{})
+	mainExit := make(chan struct{})
 	go func(ctx context.Context) {
 		defer func() {
 			if err := recover(); err != nil {
 				log.Fatal("MainThread: %v\n%v", err, string(debug.Stack()))
 			}
-			signExit <- struct{}{}
+			mainExit <- struct{}{}
 		}()
 		if app.onMain != nil {
 			if err := app.onMain.Main(ctx); err != nil {
@@ -324,7 +339,7 @@ func (app *App) execute(ctx context.Context) error {
 	signal.Notify(signSystem, os.Interrupt, os.Kill)
 
 	select {
-	case <-signExit:
+	case <-mainExit:
 	case s := <-signSystem:
 		log.Warn("Get signal: %v", s)
 	case <-ctx.Done():

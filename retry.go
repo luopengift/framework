@@ -3,31 +3,25 @@ package framework
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
-	"net/http"
 
+	"github.com/luopengift/gohttp"
 	"github.com/luopengift/log"
 )
 
-func httpPost(url string, reader io.Reader) error {
-	resp, err := http.Post(url, "application/json", reader)
+func httpPost(url string, reader io.Reader, timeout int) error {
+	resp, err := gohttp.NewClient().URLString(url).Body(reader).Timeout(timeout).Post()
 	if err != nil {
 		return err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	log.Info(string(body))
+	log.Info("%s", string(resp.Bytes()))
 	return nil
 }
 
-// Retry retry
-func Retry(url string, reader io.Reader, retry int) error {
+// Retry retry, TODO
+func Retry(url string, reader io.Reader, timeout, retry int) error {
 	var err error
 	for i := 0; i < retry; i++ {
-		if err = httpPost(url, reader); err == nil {
+		if err = httpPost(url, reader, timeout); err == nil {
 			return nil
 		}
 	}
