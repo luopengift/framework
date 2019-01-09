@@ -99,6 +99,11 @@ func HttpdRoute(path string, handler gohttp.Handler) {
 	app.Route(path, handler)
 }
 
+// HttpdRouteFunCtx http rout func ctx
+func HttpdRouteFunCtx(path string, handler gohttp.HandleFunCtx) {
+	app.RouteFunCtx(path, handler)
+}
+
 // HttpdRouteFunc http route func
 func HttpdRouteFunc(path string, f func(http.ResponseWriter, *http.Request)) {
 	app.RouteFunc(path, f)

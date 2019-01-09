@@ -26,17 +26,16 @@ var (
 // App framework
 type App struct {
 	*Option
-	Name          string `json:"name" yaml:"name"`
-	ID            string `json:"id" yaml:"id"`
-	config        interface{}
-	onPrepare     Preparer
-	onInit        Initer
-	onMain        Mainer
-	onThreads     []Threader
-	onThreadLoops []Looper
-	goroutines    []goroutine
-	onExit        Exiter
-	errChan       chan error
+	Name       string `json:"name" yaml:"name"`
+	ID         string `json:"id" yaml:"id"`
+	config     interface{}
+	onPrepare  Preparer
+	onInit     Initer
+	onMain     Mainer
+	onThreads  []Threader
+	goroutines []goroutine
+	onExit     Exiter
+	errChan    chan error
 }
 
 // New new app instance

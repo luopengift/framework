@@ -29,6 +29,11 @@ func (app *App) Route(path string, handler gohttp.Handler) {
 	httpd.Route(path, handler)
 }
 
+// RouteFunCtx route fun ctx
+func (app *App) RouteFunCtx(path string, handler gohttp.HandleFunCtx) {
+	httpd.RouteFunCtx(path, handler)
+}
+
 // RouteFunc route http
 func (app *App) RouteFunc(path string, f func(http.ResponseWriter, *http.Request)) {
 	httpd.RouteFunc(path, f)

@@ -34,10 +34,10 @@ func (r *run) Thread(ctx context.Context) error {
 	return nil
 }
 
-func (r *run) Loop(ctx context.Context) (bool, error) {
-	//panic("Loop")
-	return false, nil
-}
+// func (r *run) Loop(ctx context.Context) (bool, error) {
+// 	//panic("Loop")
+// 	return false, nil
+// }
 
 func (r *run) Exit(ctx context.Context) error {
 	return nil
@@ -46,8 +46,8 @@ func (r *run) Exit(ctx context.Context) error {
 func main() {
 	//framework.
 	framework.Bind(&run{})
-	framework.GoroutineFunc("", func(ctx context.Context) (bool, error) {
-		return false, nil
-	}, 10)
+	// framework.GoroutineFunc("", func(ctx context.Context) (bool, error) {
+	// 	return false, nil
+	// }, 10)
 	framework.Run()
 }

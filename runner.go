@@ -11,7 +11,7 @@ type Runner interface {
 	Init(context.Context) error
 	Main(context.Context) error
 	Thread(context.Context) error
-	Loop(context.Context) (bool, error)
+	//Loop(context.Context) (bool, error)
 	Exit(context.Context) error
 }
 
@@ -39,9 +39,9 @@ func (r *R) Thread(ctx context.Context) error {
 }
 
 // Loop loop
-func (r *R) Loop(ctx context.Context) (bool, error) {
-	return false, nil
-}
+// func (r *R) Loop(ctx context.Context) (bool, error) {
+// 	return false, nil
+// }
 
 // Exit exit
 func (r *R) Exit(ctx context.Context) error {
