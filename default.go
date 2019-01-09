@@ -14,6 +14,11 @@ func init() {
 	app.MainFunc(defaultMainThread)
 }
 
+// WithContext with context
+func WithContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithCancel(ctx)
+}
+
 // Bind bind runner interface
 func Bind(r Runner) {
 	app.Bind(r)
@@ -65,13 +70,18 @@ func ThreadFunc(f ...ThreaderFunc) {
 }
 
 // Loop loop interface
-func Loop(v ...Looper) {
-	app.Loop(v...)
-}
+// func Loop(v ...Looper) {
+// 	app.Loop(v...)
+// }
 
 // LoopFunc loop func
-func LoopFunc(f ...LooperFunc) {
-	app.LoopFunc(f...)
+// func LoopFunc(f ...LooperFunc) {
+// 	app.LoopFunc(f...)
+// }
+
+// GoroutineFunc GoroutineFunc
+func GoroutineFunc(name string, v GoroutinerFunc, num ...int) {
+	app.GoroutineFunc(name, v, num...)
 }
 
 // Exit interface

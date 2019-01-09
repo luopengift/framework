@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
+	"sync"
 	"time"
 
 	"github.com/luopengift/log"
@@ -19,6 +20,7 @@ import (
 // var default var
 var (
 	TimeZone *time.Location
+	wg       sync.WaitGroup
 )
 
 // App framework
@@ -32,6 +34,7 @@ type App struct {
 	onMain        Mainer
 	onThreads     []Threader
 	onThreadLoops []Looper
+	goroutines    []goroutine
 	onExit        Exiter
 	errChan       chan error
 }
@@ -71,7 +74,7 @@ func (app *App) Bind(run Runner) {
 	app.InitFunc(run.Init)
 	app.MainFunc(run.Main)
 	app.ThreadFunc(run.Thread)
-	app.LoopFunc(run.Loop)
+	//app.LoopFunc(run.Loop)
 	app.ExitFunc(run.Exit)
 }
 
@@ -139,7 +142,9 @@ func (app *App) runThreads(ctx context.Context) error {
 		if thread == nil {
 			return log.Errorf("thread must not nil!")
 		}
+		wg.Add(1)
 		go func(ctx context.Context, id int, execute Threader) {
+			defer wg.Done()
 			defer func() {
 				if err := recover(); err != nil {
 					log.Fatal("Thread[%v] %v\n%v", id, err, string(debug.Stack()))
@@ -154,47 +159,101 @@ func (app *App) runThreads(ctx context.Context) error {
 }
 
 // Loop interface
-func (app *App) Loop(loops ...Looper) {
-	for _, loop := range loops {
-		app.onThreadLoops = append(app.onThreadLoops, loop)
-	}
-}
+// func (app *App) Loop(loops ...Looper) {
+// 	for _, loop := range loops {
+// 		app.onThreadLoops = append(app.onThreadLoops, loop)
+// 	}
+// }
 
 // LoopFunc Func init func program global var
-func (app *App) LoopFunc(fs ...LooperFunc) {
-	for _, f := range fs {
-		app.onThreadLoops = append(app.onThreadLoops, f)
+// func (app *App) LoopFunc(fs ...LooperFunc) {
+// 	for _, f := range fs {
+// 		app.onThreadLoops = append(app.onThreadLoops, f)
+// 	}
+// }
+
+// func (app *App) runThreadLoops(ctx context.Context) error {
+// 	for id, threadLoop := range app.onThreadLoops {
+// 		if threadLoop == nil {
+// 			return log.Errorf("threadLoop must not nil!")
+// 		}
+// 		num := 1
+// 		for i := 0; i < num; i++ {
+// 			go func(ctx context.Context, id int, execute Looper) {
+// 				thread := func(ctx context.Context, execute Looper) (bool, error) {
+// 					defer func() {
+// 						if err := recover(); err != nil {
+// 							log.Fatal("ThreadLoop[%v] %v\n%v", id, err, string(debug.Stack()))
+// 						}
+// 					}()
+// 					return execute.Loop(ctx)
+// 				}
+// 				var exit bool
+// 				var err error
+// 				for !exit {
+// 					select {
+// 					case <-ctx.Done():
+// 						log.Error("ThreadLoop[%v]: %v", id, ctx.Err())
+// 						return
+// 					default:
+// 						if exit, err = thread(ctx, execute); err != nil {
+// 							log.Error("ThreadLoop[%v]: %v", id, err)
+// 						}
+// 					}
+// 				}
+// 			}(ctx, id, threadLoop)
+// 		}
+// 	}
+// 	return nil
+// }
+
+// GoroutineFunc GoroutineFunc
+func (app *App) GoroutineFunc(name string, fs GoroutinerFunc, num ...int) {
+	var n = 1
+	if len(num) != 0 {
+		n = num[0]
 	}
+	if name == "" {
+		name = Random(8)
+	}
+	app.goroutines = append(app.goroutines, goroutine{name, fs, n})
 }
 
-func (app *App) runThreadLoops(ctx context.Context) error {
-	for id, threadLoop := range app.onThreadLoops {
-		if threadLoop == nil {
-			return log.Errorf("threadLoop must not nil!")
+func (app *App) runGoroutines(ctx context.Context) error {
+	for _, goroutine := range app.goroutines {
+		if goroutine.exec == nil {
+			return log.Errorf("goroutine must not nil!")
 		}
-		go func(ctx context.Context, id int, execute Looper) {
-			thread := func(ctx context.Context, execute Looper) (bool, error) {
-				defer func() {
-					if err := recover(); err != nil {
-						log.Fatal("ThreadLoop[%v] %v\n%v", id, err, string(debug.Stack()))
+		for i := 0; i < goroutine.num; i++ {
+			wg.Add(1)
+			go func(ctx context.Context, name string, i, num int, execute Goroutiner) {
+				defer wg.Done()
+				var (
+					exit  bool // true: 退出goroutine, false: 循环调用goroutine.
+					err   error
+					entry = func(execute Goroutiner) (bool, error) {
+						defer func() {
+							if err := recover(); err != nil {
+								log.Fatal("goroutine panic[%v-%v/%v] %v\n%v", name, i, num, err, string(debug.Stack()))
+							}
+						}()
+						return execute.Loop(ctx)
 					}
-				}()
-				return execute.Loop(ctx)
-			}
-			var exit bool
-			var err error
-			for !exit {
-				select {
-				case <-ctx.Done():
-					log.Error("ThreadLoop[%v]: %v", id, ctx.Err())
-					return
-				default:
-					if exit, err = thread(ctx, execute); err != nil {
-						log.Error("ThreadLoop[%v]: %v", id, err)
+				)
+
+				for !exit {
+					select {
+					case <-ctx.Done():
+						log.Error("goroutine ctx[%v-%v/%v]: %v", name, i, num, ctx.Err())
+						return
+					default:
+						if exit, err = entry(execute); err != nil {
+							log.Error("goroutine run[%v-%v/%v]: %v", name, i, num, err)
+						}
 					}
 				}
-			}
-		}(ctx, id, threadLoop)
+			}(ctx, goroutine.name, i, goroutine.num, goroutine.exec)
+		}
 	}
 	return nil
 }
@@ -235,22 +294,43 @@ func (app *App) LoadConfig() error {
 
 // Run app instance
 func (app *App) Run(ctx context.Context) {
-	if err := app.execute(ctx); err != nil {
-		log.Error("%v", err)
-	}
-}
-
-func (app *App) execute(ctx context.Context) error {
-	var err error
 	now := time.Now()
-	runtime.GOMAXPROCS(runtime.NumCPU())
-	app.init()
 	defer func(now time.Time) {
 		if err := recover(); err != nil {
 			log.Fatal("%v\n%v", err, string(debug.Stack()))
 		}
 		log.Warn("exit: running time=%v", time.Since(now))
 	}(now)
+
+	if err := app.execute(ctx); err != nil {
+		log.Error("%v", err)
+	}
+	if app.onExit != nil {
+		if err := app.onExit.Exit(ctx); err != nil {
+			log.Error("exit: %v", err)
+		}
+	}
+	wg.Wait()
+}
+
+// 执行逻辑:
+// 0. 声明NumCPU和context
+// 1. 初始化app.init()
+// 2. 调用onPrepare过程
+// 3. 加载配置信息
+// 4. 初始化日志模块, app.initLog()
+// 5. 调用初始化onInit过程
+// 6. 加载其他框架模块, 例如http, pprof等
+// 7. 调用主函数onMain过程
+// 8. 调用其他goroutines
+// 9. 获取退出信号, sign.Kill或者mainExit
+// 10. 调用退出onExit过程
+func (app *App) execute(ctx context.Context) error {
+	var err error
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	app.init()
 
 	if app.onPrepare != nil {
 		if err = app.onPrepare.Prepare(ctx); err != nil {
@@ -331,7 +411,10 @@ func (app *App) execute(ctx context.Context) error {
 	if err := app.runThreads(ctx); err != nil {
 		return err
 	}
-	if err := app.runThreadLoops(ctx); err != nil {
+	// if err := app.runThreadLoops(ctx); err != nil {
+	// 	return err
+	// }
+	if err := app.runGoroutines(ctx); err != nil {
 		return err
 	}
 
@@ -340,13 +423,9 @@ func (app *App) execute(ctx context.Context) error {
 
 	select {
 	case <-mainExit:
+		log.Warn("mainExit")
 	case s := <-signSystem:
 		log.Warn("Get signal: %v", s)
-	case <-ctx.Done():
-		log.Warn("%v", ctx.Err())
-	}
-	if app.onExit != nil {
-		return app.onExit.Exit(ctx)
 	}
 	return nil
 }
