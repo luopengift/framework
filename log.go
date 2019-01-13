@@ -21,7 +21,7 @@ func (app *App) initLog() error {
 		log.SetLevel(log.INFO)
 		log.SetOutput(file)
 	}
-	log.SetTextFormat("TIME [LEVEL] MESSAGE", log.ModeColor)
+	log.SetTextFormat("TIME [LEVEL] FILE:LINE MESSAGE", log.ModeColor)
 	log.SetTimeFormat("2006-01-02 15:04:05.000")
 	return nil
 }

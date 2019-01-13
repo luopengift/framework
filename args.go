@@ -8,21 +8,15 @@ import (
 )
 
 func newArgsOpt() *Option {
-	conf := flag.String("conf", "conf.yml", "(conf)配置文件")
-	debug := flag.Bool("debug", false, "(debug)调试模式")
-	tz := flag.String("tz", "Asia/Shanghai", "(timezone)时区")
-	pprof := flag.String("pprof", "", "(pprof)性能分析路径")
-	version := flag.Bool("version", false, "(version)版本")
-	httpd := flag.String("httpd", "", "(httpd)IP:端口")
+	opt := &Option{}
+	flag.StringVar(&opt.ConfigPath, "conf", "conf.yml", "(conf)配置文件")
+	flag.BoolVar(&opt.Debug, "debug", false, "(debug)调试模式")
+	flag.StringVar(&opt.Tz, "tz", "Asia/Shanghai", "(timezone)时区")
+	flag.StringVar(&opt.PprofPath, "pprof", "", "(pprof)性能分析路径")
+	flag.BoolVar(&opt.Version, "version", false, "(version)版本")
+	flag.StringVar(&opt.Httpd, "httpd", "", "(httpd)IP:端口")
 	flag.Parse()
-	return &Option{
-		Version:    *version,
-		Debug:      *debug,
-		Tz:         *tz,
-		PprofPath:  *pprof,
-		ConfigPath: *conf,
-		Httpd:      *httpd,
-	}
+	return opt
 }
 
 // LoadEnv load system env

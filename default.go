@@ -15,8 +15,8 @@ func init() {
 }
 
 // WithContext with context
-func WithContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return context.WithCancel(ctx)
+func WithContext(ctx context.Context) {
+	app.Context = ctx
 }
 
 // Bind bind runner interface
@@ -69,16 +69,6 @@ func ThreadFunc(f ...ThreaderFunc) {
 	app.ThreadFunc(f...)
 }
 
-// Loop loop interface
-// func Loop(v ...Looper) {
-// 	app.Loop(v...)
-// }
-
-// LoopFunc loop func
-// func LoopFunc(f ...LooperFunc) {
-// 	app.LoopFunc(f...)
-// }
-
 // GoroutineFunc GoroutineFunc
 func GoroutineFunc(name string, v GoroutinerFunc, num ...int) {
 	app.GoroutineFunc(name, v, num...)
@@ -110,12 +100,8 @@ func HttpdRouteFunc(path string, f func(http.ResponseWriter, *http.Request)) {
 }
 
 // Run run
-func Run(ctx ...context.Context) {
-	var c context.Context
-	if len(ctx) == 0 {
-		c = context.Background()
-	}
-	app.Run(c)
+func Run() {
+	app.Run()
 }
 
 // NewReport new report

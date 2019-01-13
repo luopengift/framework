@@ -25,6 +25,7 @@ var (
 
 // App framework
 type App struct {
+	context.Context
 	*Option
 	Name       string `json:"name" yaml:"name"`
 	ID         string `json:"id" yaml:"id"`
@@ -41,7 +42,10 @@ type App struct {
 // New new app instance
 func New(opts ...*Option) *App {
 	app := &App{
-		Option: defaultOption,
+		Context: context.Background(),
+		Option:  defaultOption,
+		Name:    "",
+		ID:      Random(10),
 	}
 	app.Option.Merge(opts...)
 	return app
@@ -49,6 +53,11 @@ func New(opts ...*Option) *App {
 
 func (app *App) init() {
 	app.errChan = make(chan error, 100)
+}
+
+// WithContext with context
+func (app *App) WithContext(ctx context.Context) {
+	app.Context = ctx
 }
 
 func (app *App) Error(format string, v ...interface{}) {
@@ -73,7 +82,6 @@ func (app *App) Bind(run Runner) {
 	app.InitFunc(run.Init)
 	app.MainFunc(run.Main)
 	app.ThreadFunc(run.Thread)
-	//app.LoopFunc(run.Loop)
 	app.ExitFunc(run.Exit)
 }
 
@@ -156,55 +164,6 @@ func (app *App) runThreads(ctx context.Context) error {
 	}
 	return nil
 }
-
-// Loop interface
-// func (app *App) Loop(loops ...Looper) {
-// 	for _, loop := range loops {
-// 		app.onThreadLoops = append(app.onThreadLoops, loop)
-// 	}
-// }
-
-// LoopFunc Func init func program global var
-// func (app *App) LoopFunc(fs ...LooperFunc) {
-// 	for _, f := range fs {
-// 		app.onThreadLoops = append(app.onThreadLoops, f)
-// 	}
-// }
-
-// func (app *App) runThreadLoops(ctx context.Context) error {
-// 	for id, threadLoop := range app.onThreadLoops {
-// 		if threadLoop == nil {
-// 			return log.Errorf("threadLoop must not nil!")
-// 		}
-// 		num := 1
-// 		for i := 0; i < num; i++ {
-// 			go func(ctx context.Context, id int, execute Looper) {
-// 				thread := func(ctx context.Context, execute Looper) (bool, error) {
-// 					defer func() {
-// 						if err := recover(); err != nil {
-// 							log.Fatal("ThreadLoop[%v] %v\n%v", id, err, string(debug.Stack()))
-// 						}
-// 					}()
-// 					return execute.Loop(ctx)
-// 				}
-// 				var exit bool
-// 				var err error
-// 				for !exit {
-// 					select {
-// 					case <-ctx.Done():
-// 						log.Error("ThreadLoop[%v]: %v", id, ctx.Err())
-// 						return
-// 					default:
-// 						if exit, err = thread(ctx, execute); err != nil {
-// 							log.Error("ThreadLoop[%v]: %v", id, err)
-// 						}
-// 					}
-// 				}
-// 			}(ctx, id, threadLoop)
-// 		}
-// 	}
-// 	return nil
-// }
 
 // GoroutineFunc GoroutineFunc
 func (app *App) GoroutineFunc(name string, fs GoroutinerFunc, num ...int) {
@@ -292,7 +251,7 @@ func (app *App) LoadConfig() error {
 }
 
 // Run app instance
-func (app *App) Run(ctx context.Context) {
+func (app *App) Run() {
 	now := time.Now()
 	defer func(now time.Time) {
 		if err := recover(); err != nil {
@@ -301,11 +260,11 @@ func (app *App) Run(ctx context.Context) {
 		log.Warn("exit: running time=%v", time.Since(now))
 	}(now)
 
-	if err := app.execute(ctx); err != nil {
+	if err := app.execute(); err != nil {
 		log.Error("%v", err)
 	}
 	if app.onExit != nil {
-		if err := app.onExit.Exit(ctx); err != nil {
+		if err := app.onExit.Exit(app.Context); err != nil {
 			log.Error("exit: %v", err)
 		}
 	}
@@ -324,10 +283,10 @@ func (app *App) Run(ctx context.Context) {
 // 8. 调用其他goroutines
 // 9. 获取退出信号, sign.Kill或者mainExit
 // 10. 调用退出onExit过程
-func (app *App) execute(ctx context.Context) error {
+func (app *App) execute() error {
 	var err error
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(app.Context)
 	defer cancel()
 	app.init()
 
@@ -410,9 +369,7 @@ func (app *App) execute(ctx context.Context) error {
 	if err := app.runThreads(ctx); err != nil {
 		return err
 	}
-	// if err := app.runThreadLoops(ctx); err != nil {
-	// 	return err
-	// }
+
 	if err := app.runGoroutines(ctx); err != nil {
 		return err
 	}
@@ -422,7 +379,7 @@ func (app *App) execute(ctx context.Context) error {
 
 	select {
 	case <-mainExit:
-		log.Warn("mainExit")
+		log.Warn("mainThread exit...")
 	case s := <-signSystem:
 		log.Warn("Get signal: %v", s)
 	}

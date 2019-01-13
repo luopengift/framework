@@ -56,19 +56,6 @@ func (f ThreaderFunc) Thread(ctx context.Context) error {
 	return f(ctx)
 }
 
-// Looper interface, 协程循环由framework管理
-// type Looper interface {
-// 	Loop(context.Context) (exit bool, err error)
-// }
-
-// // LooperFunc thread loop func
-// type LooperFunc func(context.Context) (bool, error)
-
-// // Loop implements Loop interface
-// func (f LooperFunc) Loop(ctx context.Context) (bool, error) {
-// 	return f(ctx)
-// }
-
 // Goroutiner interface, 协程循环由framework管理
 type Goroutiner interface {
 	Loop(context.Context) (exit bool, err error)

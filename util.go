@@ -20,12 +20,11 @@ func PathExist(path string) (bool, error) {
 
 // Random random string
 func Random(n int) string {
-	str := "0123456789abcdefghijklmnopqrstuvwxyz"
-	bytes := []byte(str)
-	result := []byte{}
+	bytes := []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+	result := make([]byte, n)
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := 0; i < n; i++ {
-		result = append(result, bytes[r.Intn(len(bytes))])
+		result[i] = bytes[r.Intn(len(bytes))]
 	}
 	return string(result)
 }
