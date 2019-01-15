@@ -9,12 +9,13 @@ import (
 
 func newArgsOpt() *Option {
 	opt := &Option{}
-	flag.StringVar(&opt.ConfigPath, "conf", "conf.yml", "(conf)配置文件")
-	flag.BoolVar(&opt.Debug, "debug", false, "(debug)调试模式")
-	flag.StringVar(&opt.Tz, "tz", "Asia/Shanghai", "(timezone)时区")
-	flag.StringVar(&opt.PprofPath, "pprof", "", "(pprof)性能分析路径")
-	flag.BoolVar(&opt.Version, "version", false, "(version)版本")
-	flag.StringVar(&opt.Httpd, "httpd", "", "(httpd)IP:端口")
+	flag.StringVar(&opt.ConfigPath, "conf", defaultOption.ConfigPath, "(conf)配置文件")
+	flag.BoolVar(&opt.Debug, "debug", defaultOption.Debug, "(debug)调试模式")
+	flag.StringVar(&opt.LogPath, "log", defaultOption.LogPath, "(log)日志文件")
+	flag.StringVar(&opt.Tz, "tz", defaultOption.Tz, "(timezone)时区")
+	flag.StringVar(&opt.PprofPath, "pprof", defaultOption.PprofPath, "(pprof)性能分析路径")
+	flag.BoolVar(&opt.Version, "version", defaultOption.Version, "(version)版本")
+	flag.StringVar(&opt.Httpd, "httpd", defaultOption.Httpd, "(httpd)IP:端口")
 	flag.Parse()
 	return opt
 }

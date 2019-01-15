@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"time"
 
 	"github.com/luopengift/framework"
 )
@@ -24,7 +23,7 @@ func (r *run) Init(ctx context.Context) error {
 }
 
 func (r *run) Main(ctx context.Context) error {
-	time.Sleep(60 * time.Second)
+	//	time.Sleep(60 * time.Second)
 	//select {}
 	return nil
 }
@@ -41,8 +40,8 @@ func (r *run) Exit(ctx context.Context) error {
 func main() {
 	//framework.
 	framework.Bind(&run{})
-	framework.GoroutineFunc("", func(ctx context.Context) (bool, error) {
-		return false, nil
-	}, 10)
+	// framework.GoroutineFunc("", func(ctx context.Context) (bool, error) {
+	// 	return false, nil
+	// }, 10)
 	framework.Run()
 }
