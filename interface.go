@@ -43,7 +43,7 @@ func (f MainerFunc) Main(ctx context.Context) error {
 	return f(ctx)
 }
 
-// Threader interface, 用户自行管理携程运行退出等状态, framework仅调起函数
+// Threader interface, 用户管理goroutine运行退出等状态, framework仅调起函数
 type Threader interface {
 	Thread(context.Context) error
 }

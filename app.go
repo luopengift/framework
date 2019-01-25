@@ -302,10 +302,11 @@ func (app *App) execute() error {
 
 	if app.Option.Version {
 		log.ConsoleWithMagenta("%v", version.String())
+		app.onExit = nil // 防止onExit panic
 		return nil
 	}
 
-	if err := app.initLog(); err != nil {
+	if err := app.InitLog(); err != nil {
 		return err
 	}
 	log.Info("[%s] run...", app.Name)
@@ -359,10 +360,8 @@ func (app *App) execute() error {
 			}
 			mainExit <- struct{}{}
 		}()
-		if app.onMain != nil {
-			if err := app.onMain.Main(ctx); err != nil {
-				log.Error("MainThread: %v", err)
-			}
+		if err := app.onMain.Main(ctx); err != nil {
+			log.Error("MainThread: %v", err)
 		}
 	}(ctx)
 

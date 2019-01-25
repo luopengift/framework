@@ -1,6 +1,7 @@
 package framework
 
 import (
+	"flag"
 	"os"
 	"reflect"
 
@@ -22,6 +23,8 @@ type Option struct {
 	PprofPath      string `json:"pprof_path" yaml:"pprof_path" env:"PPROF_PATH"`                   // 性能分析路径
 	ConfigPath     string `json:"config_path" yaml:"config_path" env:"CONFIG_PATH"`                // 配置文件路径
 	LogPath        string `json:"log_path" yaml:"log_path" env:"LOG_PATH"`                         // 日志文件路径
+	LogTextFormat  string `json:"log_text_format" yaml:"log_text_format" env:"LOG_TEXT_FORMAT"`    //日志消息格式
+	LogMode        int    `json:"log_mode" yaml:"log_mode" env:"LOG_MODE"`                         //日志级别颜色, 1: 无颜色, 0:有颜色
 	MaxBytes       int    `json:"max_bytes" yaml:"max_bytes" env:"MAX_BYTES"`                      // 日志文件大小
 	MaxBackupIndex int    `json:"max_backup_index" yaml:"max_backup_index" env:"MAX_BACKUP_INDEX"` // 日志文件数量
 	ReportURL      string `json:"report_url" yaml:"report_url" env:"REPORT_URL"`                   // 数据上报地址
@@ -85,6 +88,12 @@ func (opt *Option) mergeIn(o *Option) {
 	if o.LogPath != emptyOption.LogPath {
 		opt.LogPath = o.LogPath
 	}
+	if o.LogTextFormat != emptyOption.LogTextFormat {
+		opt.LogTextFormat = o.LogTextFormat
+	}
+	if o.LogMode != emptyOption.LogMode {
+		opt.LogMode = o.LogMode
+	}
 	if o.MaxBytes != emptyOption.MaxBytes {
 		opt.MaxBytes = o.MaxBytes
 	}
@@ -108,10 +117,65 @@ func (opt *Option) Merge(opts ...*Option) {
 
 var (
 	emptyOption   = &Option{}
+	argsOption    = &Option{}
 	defaultOption = &Option{
 		Tz:             "Asia/Shanghai",
 		LogPath:        "logs/%Y-%M-%D.log",
+		LogTextFormat:  "TIME [LEVEL] FILE:LINE MESSAGE",
+		LogMode:        2,
 		MaxBytes:       200 * 1024 * 1024, //200M
 		MaxBackupIndex: 50,
 	}
 )
+
+func newArgsOpt() *Option {
+	if !flag.Parsed() {
+		flag.StringVar(&argsOption.ConfigPath, "conf", defaultOption.ConfigPath, "(conf)配置文件")
+		flag.BoolVar(&argsOption.Debug, "debug", defaultOption.Debug, "(debug)调试模式")
+		flag.StringVar(&argsOption.LogPath, "log", defaultOption.LogPath, "(log)日志文件")
+		flag.StringVar(&argsOption.Tz, "tz", defaultOption.Tz, "(timezone)时区")
+		flag.StringVar(&argsOption.PprofPath, "pprof", defaultOption.PprofPath, "(pprof)性能分析路径")
+		flag.BoolVar(&argsOption.Version, "version", defaultOption.Version, "(version)版本")
+		flag.StringVar(&argsOption.Httpd, "httpd", defaultOption.Httpd, "(httpd)IP:端口")
+		flag.Parse()
+	}
+	return argsOption
+}
+
+// LoadEnv load system env
+func newEnvOpt() (*Option, error) {
+	var err error
+	opt := &Option{}
+	debug := os.Getenv("DEBUG")
+	if debug != "" {
+		if opt.Debug, err = types.StringToBool(debug); err != nil {
+			return opt, err
+		}
+	}
+	opt.ConfigPath = os.Getenv("CONFIG_PATH")
+	opt.Tz = os.Getenv("TZ")
+	opt.LogPath = os.Getenv("LOG_PATH")
+	opt.LogTextFormat = os.Getenv("LOG_TEXT_FORMAT")
+	logMode := os.Getenv("LOG_MODE")
+	if logMode != "" {
+		if opt.LogMode, err = types.StringToInt(logMode); err != nil {
+			return opt, err
+		}
+	}
+
+	maxBytes := os.Getenv("MAX_BYTES")
+	if maxBytes != "" {
+		if opt.MaxBytes, err = types.StringToInt(maxBytes); err != nil {
+			return opt, err
+		}
+	}
+	maxBackupIndex := os.Getenv("MAX_BACKUP_INDEX")
+	if maxBackupIndex != "" {
+		if opt.MaxBackupIndex, err = types.StringToInt(maxBytes); err != nil {
+			return opt, err
+		}
+	}
+	opt.ReportURL = os.Getenv("REPORT_URL")
+	opt.Httpd = os.Getenv("HTTPD")
+	return opt, err
+}

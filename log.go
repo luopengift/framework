@@ -7,7 +7,8 @@ import (
 	"github.com/luopengift/log"
 )
 
-func (app *App) initLog() error {
+// InitLog init log
+func (app *App) InitLog() error {
 	if err := os.MkdirAll(filepath.Dir(app.Option.LogPath), 0755); err != nil {
 		return err
 	}
@@ -21,7 +22,7 @@ func (app *App) initLog() error {
 		log.SetLevel(log.INFO)
 		log.SetOutput(file)
 	}
-	log.SetTextFormat("TIME [LEVEL] FILE:LINE MESSAGE", log.ModeColor)
+	log.SetTextFormat(app.LogTextFormat, app.LogMode)
 	log.SetTimeFormat("2006-01-02 15:04:05.000")
 	return nil
 }

@@ -11,7 +11,12 @@ var app *App
 
 func init() {
 	app = New()
-	app.MainFunc(defaultMainThread)
+	app.MainFunc(DefaultMainThread)
+}
+
+// Instance return app instance
+func Instance() *App {
+	return app
 }
 
 // WithContext with context
@@ -27,6 +32,16 @@ func Bind(r Runner) {
 // BindConfig bind config
 func BindConfig(v interface{}) {
 	app.BindConfig(v)
+}
+
+// InitLog  init Log module
+func InitLog() error {
+	return app.InitLog()
+}
+
+// LoadConfig load config
+func LoadConfig() error {
+	return app.LoadConfig()
 }
 
 // Prepare prepare interface
@@ -109,8 +124,8 @@ func NewReport() *Report {
 	return app.NewReport()
 }
 
-// defaultMainThread default main thread
-func defaultMainThread(ctx context.Context) error {
+// DefaultMainThread default main thread
+func DefaultMainThread(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()

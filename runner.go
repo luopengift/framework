@@ -2,7 +2,6 @@ package framework
 
 import (
 	"context"
-	"fmt"
 )
 
 // Runner interface, TODO
@@ -29,7 +28,7 @@ func (r *R) Init(ctx context.Context) error {
 
 // Main main
 func (r *R) Main(ctx context.Context) error {
-	return fmt.Errorf("must rewrite Main Func")
+	return nil
 }
 
 // Thread thread
