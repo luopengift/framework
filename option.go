@@ -130,13 +130,13 @@ var (
 
 func newArgsOpt() *Option {
 	if !flag.Parsed() {
-		flag.StringVar(&argsOption.ConfigPath, "conf", defaultOption.ConfigPath, "(conf)配置文件")
-		flag.BoolVar(&argsOption.Debug, "debug", defaultOption.Debug, "(debug)调试模式")
-		flag.StringVar(&argsOption.LogPath, "log", defaultOption.LogPath, "(log)日志文件")
-		flag.StringVar(&argsOption.Tz, "tz", defaultOption.Tz, "(timezone)时区")
-		flag.StringVar(&argsOption.PprofPath, "pprof", defaultOption.PprofPath, "(pprof)性能分析路径")
-		flag.BoolVar(&argsOption.Version, "version", defaultOption.Version, "(version)版本")
-		flag.StringVar(&argsOption.Httpd, "httpd", defaultOption.Httpd, "(httpd)IP:端口")
+		flag.StringVar(&argsOption.ConfigPath, "conf", emptyOption.ConfigPath, "(conf)配置文件")
+		flag.BoolVar(&argsOption.Debug, "debug", emptyOption.Debug, "(debug)调试模式")
+		flag.StringVar(&argsOption.LogPath, "log", emptyOption.LogPath, "(log)日志文件")
+		flag.StringVar(&argsOption.Tz, "tz", emptyOption.Tz, "(timezone)时区")
+		flag.StringVar(&argsOption.PprofPath, "pprof", emptyOption.PprofPath, "(pprof)性能分析路径")
+		flag.BoolVar(&argsOption.Version, "version", emptyOption.Version, "(version)版本")
+		flag.StringVar(&argsOption.Httpd, "httpd", emptyOption.Httpd, "(httpd)IP:端口")
 		flag.Parse()
 	}
 	return argsOption
