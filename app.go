@@ -167,14 +167,19 @@ func (app *App) runThreads(ctx context.Context) error {
 
 // GoroutineFunc GoroutineFunc
 func (app *App) GoroutineFunc(name string, fs GoroutinerFunc, num ...int) {
-	var n = 1
-	if len(num) != 0 {
-		n = num[0]
+	var min, max int
+	switch len(num) {
+	case 0:
+		min, max = 1, 1
+	case 1:
+		min, max = num[0], num[0]
+	case 2:
+		min, max = num[0], num[1]
 	}
 	if name == "" {
 		name = Random(8)
 	}
-	app.goroutines = append(app.goroutines, goroutine{name, fs, n})
+	app.goroutines = append(app.goroutines, goroutine{name, fs, min, max})
 }
 
 func (app *App) runGoroutines(ctx context.Context) error {
@@ -182,17 +187,17 @@ func (app *App) runGoroutines(ctx context.Context) error {
 		if goroutine.exec == nil {
 			return log.Errorf("goroutine must not nil!")
 		}
-		for i := 0; i < goroutine.num; i++ {
+		for i := 0; i < goroutine.min; i++ {
 			wg.Add(1)
-			go func(ctx context.Context, name string, i, num int, execute Goroutiner) {
+			go func(ctx context.Context, name string, seq, num int, execute Goroutiner) {
 				defer wg.Done()
 				var (
 					exit  bool // true: 退出goroutine, false: 循环调用goroutine.
 					err   error
-					entry = func(execute Goroutiner) (bool, error) {
+					entry = func(seq int, execute Goroutiner) (bool, error) {
 						defer func() {
 							if err := recover(); err != nil {
-								log.Fatal("goroutine panic[%v-%v/%v] %v\n%v", name, i, num, err, string(debug.Stack()))
+								log.Fatal("goroutine panic[%v-%v/%v] %v\n%v", name, seq, num, err, string(debug.Stack()))
 							}
 						}()
 						return execute.Loop(ctx)
@@ -202,15 +207,15 @@ func (app *App) runGoroutines(ctx context.Context) error {
 				for !exit {
 					select {
 					case <-ctx.Done():
-						log.Error("goroutine ctx[%v-%v/%v]: %v", name, i, num, ctx.Err())
+						log.Error("goroutine ctx[%v-%v/%v]: %v", name, seq, num, ctx.Err())
 						return
 					default:
-						if exit, err = entry(execute); err != nil {
-							log.Error("goroutine run[%v-%v/%v]: %v", name, i, num, err)
+						if exit, err = entry(seq, execute); err != nil {
+							log.Error("goroutine run[%v-%v/%v]: %v", name, seq, num, err)
 						}
 					}
 				}
-			}(ctx, goroutine.name, i, goroutine.num, goroutine.exec)
+			}(ctx, goroutine.name, i+1, goroutine.min, goroutine.exec)
 		}
 	}
 	return nil
