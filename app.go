@@ -314,6 +314,7 @@ func (app *App) execute() error {
 	if err := app.InitLog(); err != nil {
 		return err
 	}
+	log.Warn("%v", string(log.Dump(app)))
 	log.Info("[%s] run...", app.Name)
 
 	if app.onInit != nil {
@@ -321,7 +322,6 @@ func (app *App) execute() error {
 			return err
 		}
 	}
-	log.Warn("%v", string(log.Dump(app)))
 
 	// http
 	app.initHttpd()
