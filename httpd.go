@@ -5,18 +5,25 @@ import (
 
 	"github.com/luopengift/gohttp"
 	"github.com/luopengift/log"
+	"github.com/luopengift/types"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var httpd = gohttp.Init()
 
-func (app *App) initHttpd() {
+func (app *App) initHttpd() error {
 	if app.Option.Httpd == emptyOption.Httpd {
-		return
+		return nil
+	}
+	if ok, err := PathExist(app.Option.ConfigPath); ok && err == nil {
+		if err := types.ParseConfigFile(httpd.Config, app.Option.ConfigPath); err != nil {
+			return err
+		}
 	}
 	httpd.Log = log.GetLogger("__ROOT__")
 	httpd.RouteStdHandler("^/metrics$", promhttp.Handler())
 	go httpd.Run(app.Option.Httpd)
+	return nil
 }
 
 // RouteStdHandler route http
