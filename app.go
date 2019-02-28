@@ -315,7 +315,7 @@ func (app *App) execute() error {
 		return err
 	}
 	log.Warn("%v", string(log.Dump(app)))
-	log.Info("[%s] run...", app.Name)
+	log.Info("[%s] init...", app.Name)
 
 	if app.onInit != nil {
 		if err := app.onInit.Init(ctx); err != nil {
@@ -357,6 +357,7 @@ func (app *App) execute() error {
 	if app.onMain == nil {
 		return log.Errorf("Main is nil, must set!")
 	}
+	log.Info("init success.")
 	mainExit := make(chan struct{})
 	go func(ctx context.Context) {
 		defer func() {
