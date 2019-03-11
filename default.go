@@ -11,7 +11,6 @@ var app *App
 
 func init() {
 	app = New()
-	app.MainFunc(DefaultMainThread)
 }
 
 // Instance return app instance
@@ -45,57 +44,57 @@ func LoadConfig() error {
 }
 
 // Prepare prepare interface
-func Prepare(v Preparer) {
+func Prepare(v Function) {
 	app.Prepare(v)
 }
 
 // PrepareFunc prepare func
-func PrepareFunc(f PreparerFunc) {
+func PrepareFunc(f Func) {
 	app.PrepareFunc(f)
 }
 
 // Init init interface
-func Init(v Initer) {
+func Init(v Function) {
 	app.Init(v)
 }
 
 // InitFunc init func
-func InitFunc(f IniterFunc) {
+func InitFunc(f Func) {
 	app.InitFunc(f)
 }
 
 // Main main interface
-func Main(v Mainer) {
+func Main(v Function) {
 	app.Main(v)
 }
 
 // MainFunc main func
-func MainFunc(f MainerFunc) {
+func MainFunc(f Func) {
 	app.MainFunc(f)
 }
 
 // Thread thread interface
-func Thread(v ...Threader) {
+func Thread(v ...Function) {
 	app.Thread(v...)
 }
 
 // ThreadFunc thread func
-func ThreadFunc(f ...ThreaderFunc) {
+func ThreadFunc(f ...Func) {
 	app.ThreadFunc(f...)
 }
 
 // GoroutineFunc GoroutineFunc
-func GoroutineFunc(name string, v GoroutinerFunc, num ...int) {
+func GoroutineFunc(name string, v FuncWithExit, num ...int) {
 	app.GoroutineFunc(name, v, num...)
 }
 
 // Exit interface
-func Exit(v Exiter) {
+func Exit(v Function) {
 	app.Exit(v)
 }
 
 // ExitFunc exit func
-func ExitFunc(f ExiterFunc) {
+func ExitFunc(f Func) {
 	app.ExitFunc(f)
 }
 
@@ -130,4 +129,8 @@ func DefaultMainThread(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func defaultFunc(ctx context.Context) error {
+	return nil
 }

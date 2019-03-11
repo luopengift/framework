@@ -4,16 +4,24 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/luopengift/gohttp"
+	"github.com/luopengift/framework/pkg/requests"
 	"github.com/luopengift/log"
 )
 
 func httpPost(url string, reader io.Reader, timeout int) error {
-	resp, err := gohttp.NewClient().URLString(url).Body(reader).Timeout(timeout).Post()
+	req, err := requests.NewRequest("POST", url, reader)
 	if err != nil {
 		return err
 	}
-	log.Info("%s", string(resp.Bytes()))
+	resp, err := requests.New().DoRequest(req)
+	if err != nil {
+		return err
+	}
+	txt, err := resp.Text()
+	if err != nil {
+		return err
+	}
+	log.Info("%v", txt)
 	return nil
 }
 

@@ -30,12 +30,12 @@ type App struct {
 	Name       string `json:"name" yaml:"name"`
 	ID         string `json:"id" yaml:"id"`
 	config     interface{}
-	onPrepare  Preparer
-	onInit     Initer
-	onMain     Mainer
-	onThreads  []Threader
-	goroutines []goroutine
-	onExit     Exiter
+	onPrepare  Function
+	onInit     Function
+	onMain     Function
+	onThreads  []Function
+	goroutines []*Goroutine
+	onExit     Function
 	errChan    chan error
 }
 
@@ -48,6 +48,8 @@ func New(opts ...*Option) *App {
 		ID:      Random(10),
 	}
 	app.Option.Merge(opts...)
+	app.MainFunc(DefaultMainThread)
+	app.ExitFunc(defaultFunc)
 	return app
 }
 
@@ -91,73 +93,74 @@ func (app *App) BindConfig(v interface{}) {
 }
 
 // Prepare Preparer interface
-func (app *App) Prepare(prepare Preparer) {
+func (app *App) Prepare(prepare Function) {
 	app.onPrepare = prepare
 }
 
 // PrepareFunc ParpareFunc
-func (app *App) PrepareFunc(f PreparerFunc) {
+func (app *App) PrepareFunc(f Func) {
 	app.onPrepare = f
 }
 
 // Init Initer interface
-func (app *App) Init(init Initer) {
+func (app *App) Init(init Function) {
 	app.onInit = init
 }
 
 // InitFunc init func program global var
-func (app *App) InitFunc(f IniterFunc) {
+func (app *App) InitFunc(f Func) {
 	app.onInit = f
 }
 
 // Main interface
-func (app *App) Main(main Mainer) {
+func (app *App) Main(main Function) {
 	app.onMain = main
 }
 
 // MainFunc handle main func
-func (app *App) MainFunc(f MainerFunc) {
+func (app *App) MainFunc(f Func) {
 	app.onMain = f
 }
 
 // Exit Exiter interface
-func (app *App) Exit(exit Exiter) {
+func (app *App) Exit(exit Function) {
 	app.onExit = exit
 }
 
 // ExitFunc init func program global var
-func (app *App) ExitFunc(f ExiterFunc) {
+func (app *App) ExitFunc(f Func) {
 	app.onExit = f
 }
 
 // Thread interface
-func (app *App) Thread(threads ...Threader) {
+func (app *App) Thread(threads ...Function) {
 	for _, thread := range threads {
 		app.onThreads = append(app.onThreads, thread)
 	}
 }
 
 // ThreadFunc Func init func program global var
-func (app *App) ThreadFunc(fs ...ThreaderFunc) {
+func (app *App) ThreadFunc(fs ...Func) {
 	for _, f := range fs {
 		app.onThreads = append(app.onThreads, f)
 	}
 }
 
+// 用户管理goroutine运行退出等状态, framework仅调起函数
 func (app *App) runThreads(ctx context.Context) error {
 	for id, thread := range app.onThreads {
 		if thread == nil {
 			return log.Errorf("thread must not nil!")
 		}
 		wg.Add(1)
-		go func(ctx context.Context, id int, execute Threader) {
+		go func(ctx context.Context, id int, execute Function) {
 			defer wg.Done()
 			defer func() {
 				if err := recover(); err != nil {
 					log.Fatal("Thread[%v] %v\n%v", id, err, string(debug.Stack()))
 				}
 			}()
-			if err := execute.Thread(ctx); err != nil {
+			if err := execute.Func(ctx); err != nil {
 				log.Error("Thread[%v]: %v", id, err)
 			}
 		}(ctx, id, thread)
@@ -166,7 +169,7 @@ func (app *App) runThreads(ctx context.Context) error {
 }
 
 // GoroutineFunc GoroutineFunc
-func (app *App) GoroutineFunc(name string, fs GoroutinerFunc, num ...int) {
+func (app *App) GoroutineFunc(name string, fs FunctionWithExit, num ...int) {
 	var min, max int
 	switch len(num) {
 	case 0:
@@ -175,13 +178,16 @@ func (app *App) GoroutineFunc(name string, fs GoroutinerFunc, num ...int) {
 		min, max = num[0], num[0]
 	case 2:
 		min, max = num[0], num[1]
+	default:
+		min, max = -1, -1
 	}
 	if name == "" {
 		name = Random(8)
 	}
-	app.goroutines = append(app.goroutines, goroutine{name, fs, min, max})
+	app.goroutines = append(app.goroutines, newGoroutine(name, fs, min, max))
 }
 
+// 协程循环由framework管理
 func (app *App) runGoroutines(ctx context.Context) error {
 	for _, goroutine := range app.goroutines {
 		if goroutine.exec == nil {
@@ -189,18 +195,18 @@ func (app *App) runGoroutines(ctx context.Context) error {
 		}
 		for i := 0; i < goroutine.min; i++ {
 			wg.Add(1)
-			go func(ctx context.Context, name string, seq, num int, execute Goroutiner) {
+			go func(ctx context.Context, name string, seq, num int, gor *Goroutine) {
 				defer wg.Done()
 				var (
 					exit  bool // true: 退出goroutine, false: 循环调用goroutine.
 					err   error
-					entry = func(seq int, execute Goroutiner) (bool, error) {
+					entry = func(seq int, execute FunctionWithExit) (bool, error) {
 						defer func() {
 							if err := recover(); err != nil {
 								log.Fatal("goroutine panic[%v-%v/%v] %v\n%v", name, seq, num, err, string(debug.Stack()))
 							}
 						}()
-						return execute.Loop(ctx)
+						return execute.FuncWithExit(ctx)
 					}
 				)
 
@@ -210,12 +216,19 @@ func (app *App) runGoroutines(ctx context.Context) error {
 						log.Error("goroutine ctx[%v-%v/%v]: %v", name, seq, num, ctx.Err())
 						return
 					default:
-						if exit, err = entry(seq, execute); err != nil {
+						if err := gor.before.Func(ctx); err != nil {
+							log.Error("before error: %v", err)
+							break
+						}
+						if exit, err = entry(seq, gor.exec); err != nil {
 							log.Error("goroutine run[%v-%v/%v]: %v", name, seq, num, err)
+						}
+						if err := gor.before.Func(ctx); err != nil {
+							log.Error("after error: %v", err)
 						}
 					}
 				}
-			}(ctx, goroutine.name, i+1, goroutine.min, goroutine.exec)
+			}(ctx, goroutine.name, i+1, goroutine.min, goroutine)
 		}
 	}
 	return nil
@@ -269,7 +282,7 @@ func (app *App) Run() {
 		log.Error("%v", err)
 	}
 	if app.onExit != nil {
-		if err := app.onExit.Exit(app.Context); err != nil {
+		if err := app.onExit.Func(app.Context); err != nil {
 			log.Error("exit: %v", err)
 		}
 	}
@@ -296,7 +309,7 @@ func (app *App) execute() error {
 	app.init()
 
 	if app.onPrepare != nil {
-		if err = app.onPrepare.Prepare(ctx); err != nil {
+		if err = app.onPrepare.Func(ctx); err != nil {
 			return err
 		}
 	}
@@ -307,7 +320,6 @@ func (app *App) execute() error {
 
 	if app.Option.Version {
 		log.ConsoleWithMagenta("%v", version.String())
-		app.onExit = nil // 防止onExit panic
 		return nil
 	}
 
@@ -318,7 +330,7 @@ func (app *App) execute() error {
 	log.Info("[%s] init...", app.Name)
 
 	if app.onInit != nil {
-		if err := app.onInit.Init(ctx); err != nil {
+		if err := app.onInit.Func(ctx); err != nil {
 			return err
 		}
 	}
@@ -342,7 +354,7 @@ func (app *App) execute() error {
 		}
 		defer pprof.StopCPUProfile()
 
-		mem, err := os.Create(filepath.Join(app.Option.PprofPath, "pprof/mem.prof"))
+		mem, err := os.Create(filepath.Join(app.Option.PprofPath, "mem.prof"))
 		if err != nil {
 			return err
 		}
@@ -366,7 +378,7 @@ func (app *App) execute() error {
 			}
 			mainExit <- struct{}{}
 		}()
-		if err := app.onMain.Main(ctx); err != nil {
+		if err := app.onMain.Func(ctx); err != nil {
 			log.Error("MainThread: %v", err)
 		}
 	}(ctx)

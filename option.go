@@ -3,7 +3,6 @@ package framework
 import (
 	"flag"
 	"os"
-	"reflect"
 
 	"github.com/luopengift/types"
 )
@@ -29,44 +28,6 @@ type Option struct {
 	MaxBackupIndex int    `json:"max_backup_index" yaml:"max_backup_index" env:"MAX_BACKUP_INDEX"` // 日志文件数量
 	ReportURL      string `json:"report_url" yaml:"report_url" env:"REPORT_URL"`                   // 数据上报地址
 	Httpd          string `json:"httpd" yaml:"httpd" env:"HTTPD"`                                  // http监听地址
-}
-
-// LoadEnv load system env
-func (opt *Option) _LoadEnv() error {
-	rv := reflect.Indirect(reflect.ValueOf(opt))
-	rt := rv.Type()
-	for i := 0; i < rv.NumField(); i++ {
-		v, ok := rt.Field(i).Tag.Lookup("env")
-		if !ok {
-			continue
-		}
-		env := os.Getenv(v)
-		if env != "" {
-			field := rv.Field(i)
-			switch field.Kind() {
-			case reflect.String:
-				field.SetString(env)
-			case reflect.Bool:
-				value, err := types.StringToBool(env)
-				if err != nil {
-					return err
-				}
-				field.SetBool(value)
-			case reflect.Int:
-				value, err := types.StringToInt64(env)
-				if err != nil {
-					return err
-				}
-				field.SetInt(value)
-			case reflect.Slice:
-				// value := strings.Split(env, ",")
-				// field.SetSlice(value)
-				// //fmt.Println(field.Kind())
-			}
-		}
-		//fmt.Println(rv.Field(i).Kind())
-	}
-	return nil
 }
 
 func (opt *Option) mergeIn(o *Option) {
