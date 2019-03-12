@@ -5,7 +5,7 @@ package json
 import (
 	"io"
 
-	jsoniter "github.com/json-iterator/go"
+	"github.com/json-iterator/go"
 )
 
 var (
