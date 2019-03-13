@@ -28,8 +28,8 @@ func newGoroutine(name string, exec FunctionWithExit, min, max int) *Goroutine {
 	}
 }
 
-// Taske interface
-type Taske interface {
+// Task interface
+type Task interface {
 	Init(context.Context) error
 	exec(context.Context) (bool, error)
 	BeforeRun(context.Context) error

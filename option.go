@@ -16,18 +16,18 @@ import (
 // 6. 命令行配置
 // 7. API或者其他方式修改的配置项(TODO)
 type Option struct {
-	Version        bool   `json:"version" yaml:"version" env:"VERSION"`                            // 程序信息
-	Debug          bool   `json:"debug" yaml:"debug" env:"DEBUG"`                                  // 控制台日志, Level=Debug
-	Tz             string `json:"tz" yaml:"tz" env:"TZ"`                                           // 时区, 默认Asia/Shanghai
-	PprofPath      string `json:"pprof_path" yaml:"pprof_path" env:"PPROF_PATH"`                   // 性能分析路径
-	ConfigPath     string `json:"config_path" yaml:"config_path" env:"CONFIG_PATH"`                // 配置文件路径
-	LogPath        string `json:"log_path" yaml:"log_path" env:"LOG_PATH"`                         // 日志文件路径
-	LogTextFormat  string `json:"log_text_format" yaml:"log_text_format" env:"LOG_TEXT_FORMAT"`    //日志消息格式
-	LogMode        int    `json:"log_mode" yaml:"log_mode" env:"LOG_MODE"`                         //日志级别颜色, 1: 无颜色, 0:有颜色
-	MaxBytes       int    `json:"max_bytes" yaml:"max_bytes" env:"MAX_BYTES"`                      // 日志文件大小
-	MaxBackupIndex int    `json:"max_backup_index" yaml:"max_backup_index" env:"MAX_BACKUP_INDEX"` // 日志文件数量
-	ReportURL      string `json:"report_url" yaml:"report_url" env:"REPORT_URL"`                   // 数据上报地址
-	Httpd          string `json:"httpd" yaml:"httpd" env:"HTTPD"`                                  // http监听地址
+	Version           bool   `json:"version" yaml:"version" env:"VERSION"`                                        // 程序信息
+	Debug             bool   `json:"debug" yaml:"debug" env:"DEBUG"`                                              // 控制台日志, Level=Debug
+	Tz                string `json:"tz" yaml:"tz" env:"TZ"`                                                       // 时区, 默认Asia/Shanghai
+	PprofPath         string `json:"pprof_path" yaml:"pprof_path" env:"PPROF_PATH"`                               // 性能分析路径
+	ConfigPath        string `json:"config_path" yaml:"config_path" env:"CONFIG_PATH"`                            // 配置文件路径
+	LogPath           string `json:"log_path" yaml:"log_path" env:"LOG_PATH"`                                     // 日志文件路径
+	LogTextFormat     string `json:"log_text_format" yaml:"log_text_format" env:"LOG_TEXT_FORMAT"`                //日志消息格式
+	LogMode           int    `json:"log_mode" yaml:"log_mode" env:"LOG_MODE"`                                     //日志级别颜色, 1: 无颜色, 0:有颜色
+	LogMaxBytes       int    `json:"log_max_bytes" yaml:"log_max_bytes" env:"LOG_MAX_BYTES"`                      // 日志文件大小
+	LogMaxBackupIndex int    `json:"log_max_backup_index" yaml:"log_max_backup_index" env:"LOG_MAX_BACKUP_INDEX"` // 日志文件数量
+	ReportURL         string `json:"report_url" yaml:"report_url" env:"REPORT_URL"`                               // 数据上报地址
+	Httpd             string `json:"httpd" yaml:"httpd" env:"HTTPD"`                                              // http监听地址
 }
 
 func (opt *Option) mergeIn(o *Option) {
@@ -55,11 +55,11 @@ func (opt *Option) mergeIn(o *Option) {
 	if o.LogMode != emptyOption.LogMode {
 		opt.LogMode = o.LogMode
 	}
-	if o.MaxBytes != emptyOption.MaxBytes {
-		opt.MaxBytes = o.MaxBytes
+	if o.LogMaxBytes != emptyOption.LogMaxBytes {
+		opt.LogMaxBytes = o.LogMaxBytes
 	}
-	if o.MaxBackupIndex != emptyOption.MaxBackupIndex {
-		opt.MaxBackupIndex = o.MaxBackupIndex
+	if o.LogMaxBackupIndex != emptyOption.LogMaxBackupIndex {
+		opt.LogMaxBackupIndex = o.LogMaxBackupIndex
 	}
 	if o.ReportURL != emptyOption.ReportURL {
 		opt.ReportURL = o.ReportURL
@@ -80,12 +80,12 @@ var (
 	emptyOption   = &Option{}
 	argsOption    = &Option{}
 	defaultOption = &Option{
-		Tz:             "Asia/Shanghai",
-		LogPath:        "logs/%Y-%M-%D.log",
-		LogTextFormat:  "TIME [LEVEL] FILE:LINE MESSAGE",
-		LogMode:        2,
-		MaxBytes:       200 * 1024 * 1024, //200M
-		MaxBackupIndex: 50,
+		Tz:                "Asia/Shanghai",
+		LogPath:           "logs/%Y-%M-%D.log",
+		LogTextFormat:     "TIME [LEVEL] FILE:LINE MESSAGE",
+		LogMode:           2,
+		LogMaxBytes:       200 * 1024 * 1024, //200M
+		LogMaxBackupIndex: 50,
 	}
 )
 
@@ -124,15 +124,15 @@ func newEnvOpt() (*Option, error) {
 		}
 	}
 
-	maxBytes := os.Getenv("MAX_BYTES")
-	if maxBytes != "" {
-		if opt.MaxBytes, err = types.StringToInt(maxBytes); err != nil {
+	logMaxBytes := os.Getenv("LOG_MAX_BYTES")
+	if logMaxBytes != "" {
+		if opt.LogMaxBytes, err = types.StringToInt(logMaxBytes); err != nil {
 			return opt, err
 		}
 	}
-	maxBackupIndex := os.Getenv("MAX_BACKUP_INDEX")
-	if maxBackupIndex != "" {
-		if opt.MaxBackupIndex, err = types.StringToInt(maxBytes); err != nil {
+	logMaxBackupIndex := os.Getenv("LOG_MAX_BACKUP_INDEX")
+	if logMaxBackupIndex != "" {
+		if opt.LogMaxBackupIndex, err = types.StringToInt(logMaxBackupIndex); err != nil {
 			return opt, err
 		}
 	}

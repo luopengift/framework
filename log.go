@@ -13,8 +13,8 @@ func (app *App) InitLog() error {
 		return err
 	}
 	file := log.NewFile(app.Option.LogPath)
-	file.SetMaxBytes(app.Option.MaxBytes)
-	file.SetMaxIndex(app.Option.MaxBackupIndex)
+	file.SetMaxBytes(app.Option.LogMaxBytes)
+	file.SetMaxIndex(app.Option.LogMaxBackupIndex)
 	if app.Option.Debug {
 		log.SetLevel(log.DEBUG)
 		log.SetOutput(file, os.Stderr)

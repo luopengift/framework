@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/luopengift/framework/pkg/encoding/json"
+	"github.com/luopengift/framework/util"
 	"github.com/luopengift/log"
 	"github.com/luopengift/types"
 	"github.com/luopengift/version"
@@ -19,24 +21,24 @@ import (
 
 // var default var
 var (
-	TimeZone *time.Location
-	wg       sync.WaitGroup
+	wg sync.WaitGroup
 )
 
 // App framework
 type App struct {
-	context.Context
-	*Option
-	Name       string `json:"name" yaml:"name"`
-	ID         string `json:"id" yaml:"id"`
-	config     interface{}
-	onPrepare  Function
-	onInit     Function
-	onMain     Function
-	onThreads  []Function
-	goroutines []*Goroutine
-	onExit     Function
-	errChan    chan error
+	context.Context `json:"-"`
+	*Option         `json:"option"`
+	Name            string         `json:"name" yaml:"name"`
+	ID              string         `json:"id" yaml:"id"`
+	TimeZone        *time.Location `json:"timeZone"`
+	config          interface{}
+	onPrepare       Function
+	onInit          Function
+	onMain          Function
+	onThreads       []Function
+	goroutines      []*Goroutine
+	onExit          Function
+	errChan         chan error
 }
 
 // New new app instance
@@ -45,7 +47,7 @@ func New(opts ...*Option) *App {
 		Context: context.Background(),
 		Option:  defaultOption,
 		Name:    "",
-		ID:      Random(10),
+		ID:      util.Random(10),
 	}
 	app.Option.Merge(opts...)
 	app.MainFunc(DefaultMainThread)
@@ -182,7 +184,7 @@ func (app *App) GoroutineFunc(name string, fs FunctionWithExit, num ...int) {
 		min, max = -1, -1
 	}
 	if name == "" {
-		name = Random(8)
+		name = util.Random(8)
 	}
 	app.goroutines = append(app.goroutines, newGoroutine(name, fs, min, max))
 }
@@ -243,7 +245,7 @@ func (app *App) LoadConfig() error {
 	argsOpt := newArgsOpt()
 	app.Option.Merge(envOpt, argsOpt) // 仅为了合并configPath供配置文件使用
 
-	ok, err := PathExist(app.Option.ConfigPath)
+	ok, err := util.PathExist(app.Option.ConfigPath)
 	if err != nil {
 		return err
 	}
@@ -259,12 +261,17 @@ func (app *App) LoadConfig() error {
 		if err := types.ParseConfigFile(app, app.Option.ConfigPath); err != nil {
 			return err
 		}
+		app.Option.Merge(envOpt, argsOpt) // 修改被配置文件改掉配置
 	}
-	app.Option.Merge(envOpt, argsOpt) // 修改被配置文件改掉配置
+	if app.config != nil {
+		if err = json.Format(app.config, app.Option); err != nil {
+			return err
+		}
+	}
 	if app.Name == "" {
 		app.Name = filepath.Base(os.Args[0])
 	}
-	TimeZone, err = time.LoadLocation(app.Option.Tz)
+	app.TimeZone, err = time.LoadLocation(app.Option.Tz)
 	return err
 }
 
@@ -326,7 +333,7 @@ func (app *App) execute() error {
 	if err := app.InitLog(); err != nil {
 		return err
 	}
-	log.Warn("%v", string(log.Dump(app)))
+
 	log.Info("[%s] init...", app.Name)
 
 	if app.onInit != nil {

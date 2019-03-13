@@ -3,6 +3,7 @@ package framework
 import (
 	"net/http"
 
+	"github.com/luopengift/framework/util"
 	"github.com/luopengift/gohttp"
 	"github.com/luopengift/log"
 	"github.com/luopengift/types"
@@ -15,7 +16,7 @@ func (app *App) initHttpd() error {
 	if app.Option.Httpd == emptyOption.Httpd {
 		return nil
 	}
-	if ok, err := PathExist(app.Option.ConfigPath); ok && err == nil {
+	if ok, err := util.PathExist(app.Option.ConfigPath); ok && err == nil {
 		if err := types.ParseConfigFile(httpd.Config, app.Option.ConfigPath); err != nil {
 			return err
 		}

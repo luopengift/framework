@@ -12,8 +12,8 @@ var (
 	json = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
-func NewDecoder(r io.Reader) *json.Decoder {
-	return json.NewDecoder(r)
+func MarshalToString(v interface{}) (string, error) {
+	return json.MarshalToString(v)
 }
 
 func Marshal(v interface{}) ([]byte, error) {
@@ -22,4 +22,24 @@ func Marshal(v interface{}) ([]byte, error) {
 
 func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	return json.MarshalIndent(v, prefix, indent)
+}
+
+func UnmarshalFromString(str string, v interface{}) error {
+	return json.UnmarshalFromString(str, v)
+}
+
+func Unmarshal(data []byte, v interface{}) error {
+	return json.Unmarshal(data, v)
+}
+
+func NewEncoder(writer io.Writer) *json.Encoder {
+	return json.NewEncoder(writer)
+}
+
+func NewDecoder(reader io.Reader) *json.Decoder {
+	return json.NewDecoder(reader)
+}
+
+func Valid(data []byte) bool {
+	return json.Valid(data)
 }
