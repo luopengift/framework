@@ -43,6 +43,16 @@ func LoadConfig() error {
 	return app.LoadConfig()
 }
 
+// InitLimitGroup InitLimitGroup
+func InitLimitGroup(max int) {
+	app.InitLimitGroup(max)
+}
+
+// AppendLimitFunc AppendLimitFunc
+func AppendLimitFunc(f FuncVars, vars ...interface{}) {
+	app.AppendLimitFunc(f, vars...)
+}
+
 // Prepare prepare interface
 func Prepare(v Function) {
 	app.Prepare(v)

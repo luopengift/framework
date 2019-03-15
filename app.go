@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/luopengift/framework/pkg/encoding/json"
+	"github.com/luopengift/framework/pkg/limit"
+
 	"github.com/luopengift/framework/util"
 	"github.com/luopengift/log"
 	"github.com/luopengift/types"
@@ -21,7 +23,8 @@ import (
 
 // var default var
 var (
-	wg sync.WaitGroup
+	wg      sync.WaitGroup
+	limiter *limit.Limit
 )
 
 // App framework
@@ -94,146 +97,34 @@ func (app *App) BindConfig(v interface{}) {
 	app.config = v
 }
 
-// Prepare Preparer interface
-func (app *App) Prepare(prepare Function) {
-	app.onPrepare = prepare
+// InitLimitGroup initLimitGroup
+func (app *App) InitLimitGroup(max int) {
+	limiter = limit.NewLimit(max)
 }
 
-// PrepareFunc ParpareFunc
-func (app *App) PrepareFunc(f Func) {
-	app.onPrepare = f
-}
+// FuncVars func with vars
+type FuncVars func(ctx context.Context, vars ...interface{}) error
 
-// Init Initer interface
-func (app *App) Init(init Function) {
-	app.onInit = init
-}
-
-// InitFunc init func program global var
-func (app *App) InitFunc(f Func) {
-	app.onInit = f
-}
-
-// Main interface
-func (app *App) Main(main Function) {
-	app.onMain = main
-}
-
-// MainFunc handle main func
-func (app *App) MainFunc(f Func) {
-	app.onMain = f
-}
-
-// Exit Exiter interface
-func (app *App) Exit(exit Function) {
-	app.onExit = exit
-}
-
-// ExitFunc init func program global var
-func (app *App) ExitFunc(f Func) {
-	app.onExit = f
-}
-
-// Thread interface
-func (app *App) Thread(threads ...Function) {
-	for _, thread := range threads {
-		app.onThreads = append(app.onThreads, thread)
-	}
-}
-
-// ThreadFunc Func init func program global var
-func (app *App) ThreadFunc(fs ...Func) {
-	for _, f := range fs {
-		app.onThreads = append(app.onThreads, f)
-	}
-}
-
-// 用户管理goroutine运行退出等状态, framework仅调起函数
-func (app *App) runThreads(ctx context.Context) error {
-	for id, thread := range app.onThreads {
-		if thread == nil {
-			return log.Errorf("thread must not nil!")
-		}
-		wg.Add(1)
-		go func(ctx context.Context, id int, execute Function) {
-			defer wg.Done()
-			defer func() {
-				if err := recover(); err != nil {
-					log.Fatal("Thread[%v] %v\n%v", id, err, string(debug.Stack()))
-				}
-			}()
-			if err := execute.Func(ctx); err != nil {
-				log.Error("Thread[%v]: %v", id, err)
+// AppendLimitFunc  append limitFunc
+func (app *App) AppendLimitFunc(f FuncVars, vars ...interface{}) {
+	limiter.Add()
+	go func() {
+		id := util.Random(10)
+		defer func() {
+			limiter.Done()
+			if err := recover(); err != nil {
+				log.Fatal("Limit panic[%v]: %v\n%v", id, err, string(debug.Stack()))
 			}
-		}(ctx, id, thread)
-	}
-	return nil
+		}()
+		if err := f(app.Context, vars...); err != nil {
+			log.Error("Limit[%v]: %v", id, err)
+		}
+	}()
 }
 
-// GoroutineFunc GoroutineFunc
-func (app *App) GoroutineFunc(name string, fs FunctionWithExit, num ...int) {
-	var min, max int
-	switch len(num) {
-	case 0:
-		min, max = 1, 1
-	case 1:
-		min, max = num[0], num[0]
-	case 2:
-		min, max = num[0], num[1]
-	default:
-		min, max = -1, -1
-	}
-	if name == "" {
-		name = util.Random(8)
-	}
-	app.goroutines = append(app.goroutines, newGoroutine(name, fs, min, max))
-}
-
-// 协程循环由framework管理
-func (app *App) runGoroutines(ctx context.Context) error {
-	for _, goroutine := range app.goroutines {
-		if goroutine.exec == nil {
-			return log.Errorf("goroutine must not nil!")
-		}
-		for i := 0; i < goroutine.min; i++ {
-			wg.Add(1)
-			go func(ctx context.Context, name string, seq, num int, gor *Goroutine) {
-				defer wg.Done()
-				var (
-					exit  bool // true: 退出goroutine, false: 循环调用goroutine.
-					err   error
-					entry = func(seq int, execute FunctionWithExit) (bool, error) {
-						defer func() {
-							if err := recover(); err != nil {
-								log.Fatal("goroutine panic[%v-%v/%v] %v\n%v", name, seq, num, err, string(debug.Stack()))
-							}
-						}()
-						return execute.FuncWithExit(ctx)
-					}
-				)
-
-				for !exit {
-					select {
-					case <-ctx.Done():
-						log.Error("goroutine ctx[%v-%v/%v]: %v", name, seq, num, ctx.Err())
-						return
-					default:
-						if err := gor.before.Func(ctx); err != nil {
-							log.Error("before error: %v", err)
-							break
-						}
-						if exit, err = entry(seq, gor.exec); err != nil {
-							log.Error("goroutine run[%v-%v/%v]: %v", name, seq, num, err)
-						}
-						if err := gor.before.Func(ctx); err != nil {
-							log.Error("after error: %v", err)
-						}
-					}
-				}
-			}(ctx, goroutine.name, i+1, goroutine.min, goroutine)
-		}
-	}
-	return nil
+// WaitLimitDone Wait
+func (app *App) WaitLimitDone() {
+	limiter.Wait()
 }
 
 // LoadConfig loading config step by step

@@ -7,6 +7,17 @@ import (
 	"github.com/luopengift/log"
 )
 
+// Logger interface
+type Logger interface {
+	Debug(v interface{})
+	Info(v interface{})
+	Warn(v interface{})
+	Error(v interface{})
+}
+
+// Log is framework log module
+var Log Logger
+
 // InitLog init log
 func (app *App) InitLog() error {
 	if err := os.MkdirAll(filepath.Dir(app.Option.LogPath), 0755); err != nil {

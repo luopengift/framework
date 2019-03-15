@@ -32,11 +32,11 @@ func Unmarshal(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
-func NewEncoder(writer io.Writer) *json.Encoder {
+func NewEncoder(writer io.Writer) *jsoniter.Encoder {
 	return json.NewEncoder(writer)
 }
 
-func NewDecoder(reader io.Reader) *json.Decoder {
+func NewDecoder(reader io.Reader) *jsoniter.Decoder {
 	return json.NewDecoder(reader)
 }
 
