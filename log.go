@@ -1,39 +1,42 @@
 package framework
 
-import (
-	"os"
-	"path/filepath"
-
-	"github.com/luopengift/log"
-)
-
-// Logger interface
-type Logger interface {
-	Debug(v interface{})
-	Info(v interface{})
-	Warn(v interface{})
-	Error(v interface{})
+// Log appFramework logger manager.
+type Log struct {
+	LogProvider
 }
 
-// Log is framework log module
-var Log Logger
+// NewLogProvider init Log
+// func NewLogProvider(provider LogProvider) *Log {
+// 	return &Log{
+// 		LogProvider: provider,
+// 	}
+// }
 
-// InitLog init log
-func (app *App) InitLog() error {
-	if err := os.MkdirAll(filepath.Dir(app.Option.LogPath), 0755); err != nil {
-		return err
+// LogProvider interface
+type LogProvider interface {
+	Debugf(string, ...interface{})
+	Infof(string, ...interface{})
+	Warnf(string, ...interface{})
+	Errorf(string, ...interface{})
+	Fatalf(string, ...interface{})
+}
+
+// SetLogger 设置日志模块
+func (app *App) SetLogger(provider LogProvider) {
+	app.Log = &Log{
+		LogProvider: provider,
 	}
-	file := log.NewFile(app.Option.LogPath)
-	file.SetMaxBytes(app.Option.LogMaxBytes)
-	file.SetMaxIndex(app.Option.LogMaxBackupIndex)
-	if app.Option.Debug {
-		log.SetLevel(log.DEBUG)
-		log.SetOutput(file, os.Stderr)
-	} else {
-		log.SetLevel(log.INFO)
-		log.SetOutput(file)
+}
+
+// SetLogProvider 设置日志接口
+func (app *App) SetLogProvider(provider LogProvider, setLogger ...bool) {
+	if len(setLogger) == 1 && setLogger[0] {
+		app.SetLogger(provider)
 	}
-	log.SetTextFormat(app.LogTextFormat, app.LogMode)
-	log.SetTimeFormat("2006-01-02 15:04:05.000")
-	return nil
+	app.Log.LogProvider = provider
+}
+
+// GetLogProvider 获取日志接口
+func (app *App) GetLogProvider() LogProvider {
+	return app.Log.LogProvider
 }

@@ -1,0 +1,5 @@
+name: testing
+httpd: 127.0.0.1:9999
+path: test/test/a.log
+log:
+  path: log.path

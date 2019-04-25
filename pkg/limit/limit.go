@@ -2,16 +2,16 @@ package limit
 
 import (
 	"fmt"
+	"os"
 	"sync"
-
-	"github.com/luopengift/log"
 )
 
 // Limit channel
 type Limit struct {
-	wg   *sync.WaitGroup
-	ch   chan []byte
-	stop chan struct{} // stop chan
+	wg      *sync.WaitGroup
+	ch      chan []byte
+	stop    chan struct{} // stop chan
+	LogFunc func(string, ...interface{})
 }
 
 // NewLimit channel
@@ -20,19 +20,10 @@ func NewLimit(max int) *Limit {
 		wg:   new(sync.WaitGroup),
 		ch:   make(chan []byte, max),
 		stop: make(chan struct{}),
+		LogFunc: func(format string, v ...interface{}) {
+			fmt.Fprintf(os.Stderr, format+"\n", v)
+		},
 	}
-}
-
-// Close channel
-func (c *Limit) Close() error {
-	// for i := 0; i < 10; i++ {
-	// 	if len(c.ch) == 0 {
-	// 		close(c)
-	// 		return nil
-	// 	}
-	// 	time.Sleep(10 * time.Millisecond)
-	// }
-	return fmt.Errorf("closed ch failed! ch is not empty, len is %d", c.Len())
 }
 
 //Put 往管道中写数据
@@ -64,20 +55,14 @@ func (c *Limit) Done() {
 	c.Get()
 }
 
-// Cap cap
-func (c *Limit) Cap() int { return cap(c.ch) }
-
-// Len len
-func (c *Limit) Len() int { return len(c.ch) }
-
 // Run run
 func (c *Limit) Run(fun func() error) error {
 	c.Add()
 	go func() {
+		defer c.Done()
 		if err := fun(); err != nil {
-			log.Error("%s", err)
+			c.LogFunc("%s", err)
 		}
-		c.Done()
 	}()
 	return nil
 }

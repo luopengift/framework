@@ -1,44 +1,73 @@
 package framework
 
-import (
-	"context"
-)
-
-// Runner interface, TODO
-type Runner interface {
-	Prepare(context.Context) error
-	Init(context.Context) error
-	Main(context.Context) error
-	Thread(context.Context) error
-	Exit(context.Context) error
+// Default default
+type run struct {
+	onPrepare  PrepareProvider
+	onInit     InitProvider
+	onMain     MainProvider
+	onThreads  []ThreadProvider
+	goroutines []*Goroutine
+	onExit     ExitProvider
 }
 
-// R inplements Runner interface
-type R struct{}
-
-// Prepare prepare
-func (r *R) Prepare(ctx context.Context) error {
-	return nil
+func (r *run) SetFunc(opts ...interface{}) {
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case PrepareProvider:
+			app.SetPrepareProvider(v)
+		case PrepareFunc:
+			app.SetPrepareFunc(v)
+		case InitProvider:
+			app.SetInitProvider(v)
+		case InitFunc:
+			app.SetInitFunc(v)
+		case MainProvider:
+			app.SetMainProvider(v)
+		case MainFunc:
+			app.SetMainFunc(v)
+		case ExitProvider:
+			app.SetExitProvider(v)
+		case ExitFunc:
+			app.SetExitFunc(v)
+		default:
+			panic("unkonw type")
+		}
+	}
 }
 
-// Init init
-func (r *R) Init(ctx context.Context) error {
-	return nil
+func (r *run) SetPrepareProvider(provider PrepareProvider) {
+	r.onPrepare = provider
+}
+func (r *run) SetPrepareFunc(f PrepareFunc) {
+	r.onPrepare = f
 }
 
-// Main main
-func (r *R) Main(ctx context.Context) error {
-	return nil
+func (r *run) SetInitProvider(provider InitProvider) {
+	r.onInit = provider
+}
+func (r *run) SetInitFunc(f InitFunc) {
+	r.onInit = f
 }
 
-// Thread thread
-func (r *R) Thread(ctx context.Context) error {
-	return nil
+func (r *run) SetThreadProvider(provider ThreadProvider) {
+	r.onThreads = append(r.onThreads, provider)
 }
 
-// Exit exit
-func (r *R) Exit(ctx context.Context) error {
-	return nil
+func (r *run) SetThreadFunc(f ThreadFunc) {
+	r.onThreads = append(r.onThreads, f)
 }
 
-var run Runner = &R{}
+func (r *run) SetMainProvider(provider MainProvider) {
+	r.onMain = provider
+}
+
+func (r *run) SetMainFunc(f MainFunc) {
+	r.onMain = f
+}
+
+func (r *run) SetExitProvider(provider ExitProvider) {
+	r.onExit = provider
+}
+func (r *run) SetExitFunc(f ExitFunc) {
+	r.onExit = f
+}

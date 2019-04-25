@@ -2,49 +2,25 @@ package framework
 
 import (
 	"context"
+	"errors"
 	"runtime/debug"
 
 	"github.com/luopengift/framework/util"
-	"github.com/luopengift/log"
 )
 
 // Goroutine goroutine
 type Goroutine struct {
 	name     string
-	before   Function
-	exec     FunctionWithExit
-	after    Function
+	exec     ThreadWithExitProvider
 	min, max int
 }
 
-type null struct{}
-
-func (null) Func(context.Context) error {
-	return nil
-}
-
-func newGoroutine(name string, exec FunctionWithExit, min, max int) *Goroutine {
+func newGoroutine(name string, exec ThreadWithExitProvider, min, max int) *Goroutine {
 	return &Goroutine{
-		name:   name,
-		before: &null{},
-		exec:   exec,
-		after:  &null{},
-		min:    min,
-		max:    max,
-	}
-}
-
-// Thread interface
-func (app *App) Thread(threads ...Function) {
-	for _, thread := range threads {
-		app.onThreads = append(app.onThreads, thread)
-	}
-}
-
-// ThreadFunc Func init func program global var
-func (app *App) ThreadFunc(fs ...Func) {
-	for _, f := range fs {
-		app.onThreads = append(app.onThreads, f)
+		name: name,
+		exec: exec,
+		min:  min,
+		max:  max,
 	}
 }
 
@@ -52,18 +28,18 @@ func (app *App) ThreadFunc(fs ...Func) {
 func (app *App) runThreads(ctx context.Context) error {
 	for id, thread := range app.onThreads {
 		if thread == nil {
-			return log.Errorf("thread must not nil!")
+			return errors.New("thread must not nil")
 		}
 		wg.Add(1)
-		go func(ctx context.Context, id int, execute Function) {
+		go func(ctx context.Context, id int, execute ThreadProvider) {
 			defer wg.Done()
 			defer func() {
 				if err := recover(); err != nil {
-					log.Fatal("Thread[%v] %v\n%v", id, err, string(debug.Stack()))
+					app.Log.Fatalf("Thread[%v] %v\n%v", id, err, string(debug.Stack()))
 				}
 			}()
-			if err := execute.Func(ctx); err != nil {
-				log.Error("Thread[%v]: %v", id, err)
+			if err := execute.ThreadFunc(ctx); err != nil {
+				app.Log.Errorf("Thread[%v]: %v", id, err)
 			}
 		}(ctx, id, thread)
 	}
@@ -71,7 +47,7 @@ func (app *App) runThreads(ctx context.Context) error {
 }
 
 // GoroutineFunc GoroutineFunc
-func (app *App) GoroutineFunc(name string, fs FunctionWithExit, num ...int) {
+func (app *App) GoroutineFunc(name string, fs ThreadWithExitProvider, num ...int) {
 	var min, max int
 	switch len(num) {
 	case 0:
@@ -93,7 +69,7 @@ func (app *App) GoroutineFunc(name string, fs FunctionWithExit, num ...int) {
 func (app *App) runGoroutines(ctx context.Context) error {
 	for _, goroutine := range app.goroutines {
 		if goroutine.exec == nil {
-			return log.Errorf("goroutine must not nil!")
+			return errors.New("goroutine must not nil")
 		}
 		for i := 0; i < goroutine.min; i++ {
 			wg.Add(1)
@@ -102,31 +78,24 @@ func (app *App) runGoroutines(ctx context.Context) error {
 				var (
 					exit  bool // true: 退出goroutine, false: 循环调用goroutine.
 					err   error
-					entry = func(seq int, execute FunctionWithExit) (bool, error) {
+					entry = func(seq int, execute ThreadWithExitProvider) (bool, error) {
 						defer func() {
 							if err := recover(); err != nil {
-								log.Fatal("goroutine panic[%v-%v/%v] %v\n%v", name, seq, num, err, string(debug.Stack()))
+								app.Log.Fatalf("goroutine panic[%v-%v/%v] %v\n%v", name, seq, num, err, string(debug.Stack()))
 							}
 						}()
-						return execute.FuncWithExit(ctx)
+						return execute.ThreadWithExitFunc(ctx)
 					}
 				)
 
 				for !exit {
 					select {
 					case <-ctx.Done():
-						log.Error("goroutine ctx[%v-%v/%v]: %v", name, seq, num, ctx.Err())
+						app.Log.Errorf("goroutine ctx[%v-%v/%v]: %v", name, seq, num, ctx.Err())
 						return
 					default:
-						if err := gor.before.Func(ctx); err != nil {
-							log.Error("before error: %v", err)
-							break
-						}
 						if exit, err = entry(seq, gor.exec); err != nil {
-							log.Error("goroutine run[%v-%v/%v]: %v", name, seq, num, err)
-						}
-						if err := gor.before.Func(ctx); err != nil {
-							log.Error("after error: %v", err)
+							app.Log.Errorf("goroutine run[%v-%v/%v]: %v", name, seq, num, err)
 						}
 					}
 				}
@@ -134,13 +103,4 @@ func (app *App) runGoroutines(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-// Task interface
-type Task interface {
-	Init(context.Context) error
-	exec(context.Context) (bool, error)
-	BeforeRun(context.Context) error
-	AfterRun(context.Context) error
-	RunMode()
 }

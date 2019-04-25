@@ -8,58 +8,84 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"runtime/pprof"
 	"sync"
 	"time"
 
-	"github.com/luopengift/framework/pkg/encoding/json"
 	"github.com/luopengift/framework/pkg/limit"
-
+	"github.com/luopengift/framework/pkg/log"
 	"github.com/luopengift/framework/util"
-	"github.com/luopengift/log"
-	"github.com/luopengift/types"
-	"github.com/luopengift/version"
 )
 
 // var default var
 var (
+	sTime   time.Time
 	wg      sync.WaitGroup
+	mux     sync.RWMutex
+	one     sync.Once
 	limiter *limit.Limit
 )
 
 // App framework
 type App struct {
 	context.Context `json:"-"`
+	Name            string `json:"name" yaml:"name"`
+	ID              string `json:"id" yaml:"id"`
+	Log             *Log
 	*Option         `json:"option"`
-	Name            string         `json:"name" yaml:"name"`
-	ID              string         `json:"id" yaml:"id"`
 	TimeZone        *time.Location `json:"timeZone"`
-	config          interface{}
-	onPrepare       Function
-	onInit          Function
-	onMain          Function
-	onThreads       []Function
-	goroutines      []*Goroutine
-	onExit          Function
-	errChan         chan error
+	Config          ConfigProvider
+	*run
+	raws     []byte
+	register []interface{}
 }
 
-// New new app instance
-func New(opts ...*Option) *App {
-	app := &App{
-		Context: context.Background(),
-		Option:  defaultOption,
-		Name:    "",
-		ID:      util.Random(10),
-	}
-	app.Option.Merge(opts...)
-	app.MainFunc(DefaultMainThread)
-	app.ExitFunc(defaultFunc)
+// NewOnce new app by once
+func NewOnce(opts ...interface{}) *App {
+	mux.Lock()
+	defer mux.Unlock()
+	one.Do(func() {
+		app = New(opts...)
+	})
 	return app
 }
 
-func (app *App) init() {
-	app.errChan = make(chan error, 100)
+// New new app instance
+func New(opts ...interface{}) *App {
+	sTime = time.Now()
+	app := &App{
+		Context: context.Background(),
+		ID:      util.Random(10),
+		Name:    filepath.Base(os.Args[0]),
+		Log: &Log{
+			log.NewStdLog(),
+		},
+		Config: struct{}{},
+		Option: defaultOption,
+		run:    &run{},
+	}
+	app.SetPrepareFunc(defaultFunc)
+	app.SetInitFunc(defaultFunc)
+	app.SetMainFunc(mainThread)
+	app.SetExitFunc(defaultFunc)
+	app.SetOpts(opts...)
+	return app
+}
+
+// SetOpts set opts
+func (app *App) SetOpts(opts ...interface{}) *App {
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case LogProvider:
+			app.Log.LogProvider = v
+		case *Option:
+			app.mergeIn(v)
+		case Option:
+			app.mergeIn(&v)
+		default:
+			panic("Unknow type opts")
+		}
+	}
+	return app
 }
 
 // WithContext with context
@@ -67,34 +93,9 @@ func (app *App) WithContext(ctx context.Context) {
 	app.Context = ctx
 }
 
-func (app *App) Error(format string, v ...interface{}) {
-	app.errChan <- fmt.Errorf(format, v...)
-}
-
-func (app *App) error() {
-	for {
-		select {
-		case err, ok := <-app.errChan:
-			if !ok {
-				return
-			}
-			log.Error("%v", err)
-		}
-	}
-}
-
-// Bind bind runner interface
-func (app *App) Bind(run Runner) {
-	app.PrepareFunc(run.Prepare)
-	app.InitFunc(run.Init)
-	app.MainFunc(run.Main)
-	app.ThreadFunc(run.Thread)
-	app.ExitFunc(run.Exit)
-}
-
 // BindConfig bind config
-func (app *App) BindConfig(v interface{}) {
-	app.config = v
+func (app *App) BindConfig(v ConfigProvider) {
+	app.Config = v
 }
 
 // InitLimitGroup initLimitGroup
@@ -113,13 +114,18 @@ func (app *App) AppendLimitFunc(f FuncVars, vars ...interface{}) {
 		defer func() {
 			limiter.Done()
 			if err := recover(); err != nil {
-				log.Fatal("Limit panic[%v]: %v\n%v", id, err, string(debug.Stack()))
+				app.PrintStack(app.Log.Fatalf, "Limit panic[%v]: %v\n%v", id, err)
 			}
 		}()
 		if err := f(app.Context, vars...); err != nil {
-			log.Error("Limit[%v]: %v", id, err)
+			app.PrintStack(app.Log.Errorf, "Limit[%v]: %v", id, err)
 		}
 	}()
+}
+
+// PrintStack append stack with func(format string ,v ...interface{})
+func (app *App) PrintStack(f func(string, ...interface{}), format string, v ...interface{}) {
+	f(format+"\n%s", append(v, string(debug.Stack()))...)
 }
 
 // WaitLimitDone Wait
@@ -127,62 +133,19 @@ func (app *App) WaitLimitDone() {
 	limiter.Wait()
 }
 
-// LoadConfig loading config step by step
-func (app *App) LoadConfig() error {
-	envOpt, err := newEnvOpt()
-	if err != nil {
-		return err
-	}
-	argsOpt := newArgsOpt()
-	app.Option.Merge(envOpt, argsOpt) // 仅为了合并configPath供配置文件使用
-
-	ok, err := util.PathExist(app.Option.ConfigPath)
-	if err != nil {
-		return err
-	}
-	if ok {
-		if app.config != nil {
-			if err := types.ParseConfigFile(app.config, app.Option.ConfigPath); err != nil {
-				return err
-			}
-		}
-		if err := types.ParseConfigFile(app.Option, app.Option.ConfigPath); err != nil {
-			return err
-		}
-		if err := types.ParseConfigFile(app, app.Option.ConfigPath); err != nil {
-			return err
-		}
-		app.Option.Merge(envOpt, argsOpt) // 修改被配置文件改掉配置
-	}
-	if app.config != nil {
-		if err = json.Format(app.config, app.Option); err != nil {
-			return err
-		}
-	}
-	if app.Name == "" {
-		app.Name = filepath.Base(os.Args[0])
-	}
-	app.TimeZone, err = time.LoadLocation(app.Option.Tz)
-	return err
-}
-
 // Run app instance
 func (app *App) Run() {
-	now := time.Now()
-	defer func(now time.Time) {
+	defer func() {
 		if err := recover(); err != nil {
-			log.Fatal("%v\n%v", err, string(debug.Stack()))
+			app.PrintStack(app.Log.Errorf, "%v", err)
 		}
-		log.Warn("exit: running time=%v", time.Since(now))
-	}(now)
-
+		app.Log.Warnf("exit: running time=%v", time.Since(sTime))
+	}()
 	if err := app.execute(); err != nil {
-		log.Error("%v", err)
+		app.PrintStack(app.Log.Errorf, "%v", err)
 	}
-	if app.onExit != nil {
-		if err := app.onExit.Func(app.Context); err != nil {
-			log.Error("exit: %v", err)
-		}
+	if err := app.onExit.ExitFunc(app.Context); err != nil {
+		app.PrintStack(app.Log.Errorf, "onExit: %v", err)
 	}
 	wg.Wait()
 }
@@ -204,88 +167,54 @@ func (app *App) execute() error {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	ctx, cancel := context.WithCancel(app.Context)
 	defer cancel()
-	app.init()
 
-	if app.onPrepare != nil {
-		if err = app.onPrepare.Func(ctx); err != nil {
-			return err
-		}
+	if err = app.onPrepare.PrepareFunc(ctx); err != nil {
+		return err
 	}
 
 	if err = app.LoadConfig(); err != nil {
 		return err
 	}
 
-	if app.Option.Version {
-		log.ConsoleWithMagenta("%v", version.String())
-		return nil
-	}
+	app.SetOpts(app.register...)
 
-	if err := app.InitLog(); err != nil {
+	if err = app.onInit.InitFunc(ctx); err != nil {
 		return err
 	}
-
-	log.Info("[%s] init...", app.Name)
-
-	if app.onInit != nil {
-		if err := app.onInit.Func(ctx); err != nil {
-			return err
-		}
-	}
+	app.Log.Infof("[%s] init...", app.Name)
 
 	// http
 	app.initHttpd()
 
 	// pprof
 	if app.Option.PprofPath != "" {
-		if err = os.MkdirAll(app.Option.PprofPath, 0755); err != nil {
-			return err
-		}
-		cpu, err := os.Create(filepath.Join(app.Option.PprofPath, "cpu.prof"))
-		if err != nil {
-			return err
-		}
-		defer cpu.Close()
-
-		if err = pprof.StartCPUProfile(cpu); err != nil {
-			return err
-		}
-		defer pprof.StopCPUProfile()
-
-		mem, err := os.Create(filepath.Join(app.Option.PprofPath, "mem.prof"))
-		if err != nil {
-			return err
-		}
-		defer mem.Close()
-		//mem
-		runtime.GC()
-		if err := pprof.WriteHeapProfile(mem); err != nil {
-			return err
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err = startPprof(ctx, app.Option.PprofPath); err != nil {
+				app.Log.Errorf("%v", err)
+			}
+		}()
 	}
 
-	if app.onMain == nil {
-		return log.Errorf("Main is nil, must set!")
-	}
-	log.Info("init success.")
-	mainExit := make(chan struct{})
+	app.Log.Infof("init success. cost=%v", time.Since(sTime))
+
+	mainExit := make(chan error)
 	go func(ctx context.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Fatal("MainThread: %v\n%v", err, string(debug.Stack()))
+				app.PrintStack(app.Log.Fatalf, "MainThread: %v", err)
+				mainExit <- fmt.Errorf("%v", err)
 			}
-			mainExit <- struct{}{}
 		}()
-		if err := app.onMain.Func(ctx); err != nil {
-			log.Error("MainThread: %v", err)
-		}
+		mainExit <- app.onMain.MainFunc(ctx)
 	}(ctx)
 
-	if err := app.runThreads(ctx); err != nil {
+	if err = app.runThreads(ctx); err != nil {
 		return err
 	}
 
-	if err := app.runGoroutines(ctx); err != nil {
+	if err = app.runGoroutines(ctx); err != nil {
 		return err
 	}
 
@@ -293,10 +222,21 @@ func (app *App) execute() error {
 	signal.Notify(signSystem, os.Interrupt, os.Kill)
 
 	select {
-	case <-mainExit:
-		log.Warn("mainThread exit...")
+	case err = <-mainExit:
+		app.Log.Warnf("Exit MainThread: %v", err)
 	case s := <-signSystem:
-		log.Warn("Get signal: %v", s)
+		app.Log.Warnf("Exit: signal %v", s)
 	}
 	return nil
 }
+
+// Regist v into framework
+func (app *App) Regist(v interface{}) {
+	// return json.Unmarshal(app.raws, v)
+	app.register = append(app.register, v)
+
+}
+
+// func (app *App) RegistLog(provider LogProvider) error {
+// 	app.Log.LogProvider = provider
+// }

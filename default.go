@@ -7,11 +7,7 @@ import (
 	"github.com/luopengift/gohttp"
 )
 
-var app *App
-
-func init() {
-	app = New()
-}
+var app = New()
 
 // Instance return app instance
 func Instance() *App {
@@ -23,24 +19,9 @@ func WithContext(ctx context.Context) {
 	app.Context = ctx
 }
 
-// Bind bind runner interface
-func Bind(r Runner) {
-	app.Bind(r)
-}
-
 // BindConfig bind config
-func BindConfig(v interface{}) {
+func BindConfig(v ConfigProvider) {
 	app.BindConfig(v)
-}
-
-// InitLog  init Log module
-func InitLog() error {
-	return app.InitLog()
-}
-
-// LoadConfig load config
-func LoadConfig() error {
-	return app.LoadConfig()
 }
 
 // InitLimitGroup InitLimitGroup
@@ -53,59 +34,24 @@ func AppendLimitFunc(f FuncVars, vars ...interface{}) {
 	app.AppendLimitFunc(f, vars...)
 }
 
-// Prepare prepare interface
-func Prepare(v Function) {
-	app.Prepare(v)
+// SetPrepareFunc prepare func
+func SetPrepareFunc(f PrepareFunc) {
+	app.SetPrepareFunc(f)
 }
 
-// PrepareFunc prepare func
-func PrepareFunc(f Func) {
-	app.PrepareFunc(f)
+// SetInitFunc init func
+func SetInitFunc(f InitFunc) {
+	app.SetInitFunc(f)
 }
 
-// Init init interface
-func Init(v Function) {
-	app.Init(v)
+// SetMainFunc main func
+func SetMainFunc(f MainFunc) {
+	app.SetMainFunc(f)
 }
 
-// InitFunc init func
-func InitFunc(f Func) {
-	app.InitFunc(f)
-}
-
-// Main main interface
-func Main(v Function) {
-	app.Main(v)
-}
-
-// MainFunc main func
-func MainFunc(f Func) {
-	app.MainFunc(f)
-}
-
-// Thread thread interface
-func Thread(v ...Function) {
-	app.Thread(v...)
-}
-
-// ThreadFunc thread func
-func ThreadFunc(f ...Func) {
-	app.ThreadFunc(f...)
-}
-
-// GoroutineFunc GoroutineFunc
-func GoroutineFunc(name string, v FuncWithExit, num ...int) {
-	app.GoroutineFunc(name, v, num...)
-}
-
-// Exit interface
-func Exit(v Function) {
-	app.Exit(v)
-}
-
-// ExitFunc exit func
-func ExitFunc(f Func) {
-	app.ExitFunc(f)
+// SetThreadFunc thread func
+func SetThreadFunc(f ThreadFunc) {
+	app.SetThreadFunc(f)
 }
 
 // HttpdRoute http route
@@ -128,13 +74,8 @@ func Run() {
 	app.Run()
 }
 
-// NewReport new report
-func NewReport() *Report {
-	return app.NewReport()
-}
-
-// DefaultMainThread default main thread
-func DefaultMainThread(ctx context.Context) error {
+// mainThread default main thread
+func mainThread(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -143,4 +84,39 @@ func DefaultMainThread(ctx context.Context) error {
 
 func defaultFunc(ctx context.Context) error {
 	return nil
+}
+
+// SetLogger SetLogger
+func SetLogger(provider LogProvider) {
+	app.SetLogger(provider)
+}
+
+// SetLogProvider SetLogProvider
+func SetLogProvider(provider LogProvider) {
+	app.SetLogProvider(provider)
+}
+
+// Debugf Debugf
+func Debugf(format string, v ...interface{}) {
+	app.Log.Debugf(format, v...)
+}
+
+// Infof Infof
+func Infof(format string, v ...interface{}) {
+	app.Log.Infof(format, v...)
+}
+
+// Warnf warnf
+func Warnf(format string, v ...interface{}) {
+	app.Log.Warnf(format, v...)
+}
+
+// Errorf Errorf
+func Errorf(format string, v ...interface{}) {
+	app.Log.Errorf(format, v...)
+}
+
+// Fatalf Fatalf
+func Fatalf(format string, v ...interface{}) {
+	app.Log.Fatalf(format, v...)
 }

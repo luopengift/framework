@@ -1,25 +1,35 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"time"
 
 	"github.com/luopengift/framework"
+	"github.com/luopengift/requests"
 )
 
+type Log struct {
+	Path string
+}
+type Config struct {
+	Path string `yaml:"path"`
+	Log  Log
+}
+
 func main() {
-	framework.ThreadFunc(func(ctx context.Context) error {
-		for {
-			b, err := json.Marshal(framework.NewReport())
-			if err != nil {
-				return err
-			}
-			reader := bytes.NewBuffer(b)
-			framework.Retry("http://127.0.0.1:3456/report", reader, 1, 5)
-			time.Sleep(1 * time.Second)
+	sess := requests.New().SetRetry(2).SetTimeout(3)
+	c := &Config{Path: "ooo"}
+	req := requests.NewRequest("GET", "http://httpbin.org", nil)
+	app := framework.New()
+	app.BindConfig(c)
+	// app.Regist(framework.NewLogOpt())
+	app.SetMainFunc(func(ctx context.Context) error {
+		sess.LogFunc = framework.Instance().Log.Warnf
+		if _, err := sess.DoRequest(req); err != nil {
+			return err
 		}
+		app.Log.Infof("%#v", app.Config)
+		return nil
 	})
-	framework.Run()
+
+	app.Run()
 }

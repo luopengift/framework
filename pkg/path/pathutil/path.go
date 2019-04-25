@@ -1,11 +1,11 @@
-package util
+package pathutil
 
 import (
 	"os"
 )
 
-// PathExist check wether file/dir is exist
-func PathExist(path string) (bool, error) {
+// Exist check wether file/dir is exist
+func Exist(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
 		return true, nil
