@@ -25,17 +25,21 @@ var (
 	limiter *limit.Limit
 )
 
+// Register interface
+type Register interface {
+	Init() error
+}
+
 // App framework
 type App struct {
 	context.Context `json:"-"`
-	Name            string `json:"name" yaml:"name"`
-	ID              string `json:"id" yaml:"id"`
-	Log             *Log
 	*Option         `json:"option"`
-	TimeZone        *time.Location `json:"timeZone"`
-	Config          ConfigProvider
 	*run
-	raws     []byte
+	Name     string         `json:"name" yaml:"name"`
+	ID       string         `json:"id" yaml:"id"`
+	TimeZone *time.Location `json:"timeZone"`
+	ConfigProvider
+	Log      *Log
 	register []interface{}
 }
 
@@ -57,11 +61,11 @@ func New(opts ...interface{}) *App {
 		ID:      util.Random(10),
 		Name:    filepath.Base(os.Args[0]),
 		Log: &Log{
-			log.NewStdLog(),
+			LogProvider: log.NewStdLog(),
 		},
-		Config: struct{}{},
-		Option: defaultOption,
-		run:    &run{},
+		ConfigProvider: struct{}{},
+		Option:         defaultOption,
+		run:            &run{},
 	}
 	app.SetPrepareFunc(defaultFunc)
 	app.SetInitFunc(defaultFunc)
@@ -95,7 +99,7 @@ func (app *App) WithContext(ctx context.Context) {
 
 // BindConfig bind config
 func (app *App) BindConfig(v ConfigProvider) {
-	app.Config = v
+	app.ConfigProvider = v
 }
 
 // InitLimitGroup initLimitGroup
@@ -176,6 +180,18 @@ func (app *App) execute() error {
 		return err
 	}
 
+	for _, regist := range app.register {
+		if err = Format(regist, app.ConfigProvider); err != nil {
+			return err
+		}
+		reg, ok := regist.(Register)
+		if !ok {
+			return fmt.Errorf("regist not Register interface")
+		}
+		if err = reg.Init(); err != nil {
+			return err
+		}
+	}
 	app.SetOpts(app.register...)
 
 	if err = app.onInit.InitFunc(ctx); err != nil {
@@ -232,11 +248,5 @@ func (app *App) execute() error {
 
 // Regist v into framework
 func (app *App) Regist(v interface{}) {
-	// return json.Unmarshal(app.raws, v)
 	app.register = append(app.register, v)
-
 }
-
-// func (app *App) RegistLog(provider LogProvider) error {
-// 	app.Log.LogProvider = provider
-// }

@@ -5,13 +5,6 @@ type Log struct {
 	LogProvider
 }
 
-// NewLogProvider init Log
-// func NewLogProvider(provider LogProvider) *Log {
-// 	return &Log{
-// 		LogProvider: provider,
-// 	}
-// }
-
 // LogProvider interface
 type LogProvider interface {
 	Debugf(string, ...interface{})

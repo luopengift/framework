@@ -1,6 +1,7 @@
 package framework
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -10,11 +11,11 @@ import (
 
 // Option option
 type Option struct {
-	Level      string `json:"level" yaml:"level" env:"LEVEL"`                   // 控制台日志, Level=debug, info, warn, error, fatal
-	Tz         string `json:"tz" yaml:"tz" env:"TZ"`                            // 时区, 默认Asia/Shanghai
-	PprofPath  string `json:"pprof_path" yaml:"pprof_path" env:"PPROF_PATH"`    // 性能分析路径
-	ConfigPath string `json:"config_path" yaml:"config_path" env:"CONFIG_PATH"` // 配置文件路径
-	Httpd      string `json:"httpd" yaml:"httpd" env:"HTTPD"`                   // http监听地址
+	Level      string `json:"level,omitempty" yaml:"level" env:"LEVEL"`                   // 控制台日志, Level=debug, info, warn, error, fatal
+	Tz         string `json:"tz,omitempty" yaml:"tz" env:"TZ"`                            // 时区, 默认Asia/Shanghai
+	PprofPath  string `json:"pprof_path,omitempty" yaml:"pprof_path" env:"PPROF_PATH"`    // 性能分析路径
+	ConfigPath string `json:"config_path,omitempty" yaml:"config_path" env:"CONFIG_PATH"` // 配置文件路径
+	Httpd      string `json:"httpd,omitempty" yaml:"httpd" env:"HTTPD"`                   // http监听地址
 }
 
 func (opt *Option) mergeIn(o *Option) {
@@ -75,4 +76,33 @@ func newEnvOpt() *Option {
 	opt.Tz = os.Getenv("TZ")
 	opt.Httpd = os.Getenv("HTTPD")
 	return opt
+}
+
+// Format  dest by dest
+func Format(dest, src interface{}) error {
+	bytes, err := json.Marshal(src)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(bytes, dest)
+}
+
+// UpdateTo update to
+func UpdateTo(src interface{}, dests ...interface{}) error {
+	for _, dest := range dests {
+		if err := Format(dest, src); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// UpdateFrom update form
+func UpdateFrom(dest interface{}, srcs ...interface{}) error {
+	for _, src := range srcs {
+		if err := Format(dest, src); err != nil {
+			return err
+		}
+	}
+	return nil
 }

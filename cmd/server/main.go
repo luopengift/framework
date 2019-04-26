@@ -58,7 +58,7 @@ func main() {
 		Httpd: ":9099",
 	})
 	framework.HttpdRoute("/report", &Report{})
-	conf := framework.Instance().Config.(*config)
+	conf := framework.Instance().ConfigProvider.(*config)
 	log.Infof("%#v", conf.Httpd)
 	framework.Run()
 }

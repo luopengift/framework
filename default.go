@@ -7,7 +7,12 @@ import (
 	"github.com/luopengift/gohttp"
 )
 
-var app = New()
+var app *App
+
+func init() {
+	app = New()
+	app.Regist(NewLogOpt())
+}
 
 // Instance return app instance
 func Instance() *App {

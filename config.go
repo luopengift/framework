@@ -39,7 +39,7 @@ func (app *App) LoadConfig() error {
 		return err
 	}
 	if ok {
-		for _, v := range []interface{}{app.Config, app.Option, app} {
+		for _, v := range []interface{}{app.ConfigProvider, app.Option, app} {
 			if err = parseConfigFile(v, app.Option.ConfigPath); err != nil {
 				return err
 			}
