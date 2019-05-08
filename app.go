@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,7 +41,7 @@ type App struct {
 	TimeZone *time.Location `json:"timeZone"`
 	ConfigProvider
 	Log      *Log
-	register []interface{}
+	register []*Module
 }
 
 // NewOnce new app by once
@@ -175,24 +176,26 @@ func (app *App) execute() error {
 	if err = app.onPrepare.PrepareFunc(ctx); err != nil {
 		return err
 	}
-
 	if err = app.LoadConfig(); err != nil {
 		return err
 	}
 
 	for _, regist := range app.register {
-		if err = Format(regist, app.ConfigProvider); err != nil {
+		if err = Format(regist.Regist, app.ConfigProvider); err != nil {
 			return err
 		}
-		reg, ok := regist.(Register)
+		if err = UpdateFrom(regist.Regist, regist.Configs...); err != nil {
+			return err
+		}
+		reg, ok := regist.Regist.(Register)
 		if !ok {
-			return fmt.Errorf("regist not Register interface")
+			return fmt.Errorf("regist not implement Register interface")
 		}
 		if err = reg.Init(); err != nil {
 			return err
 		}
+		app.SetOpts(regist.Regist)
 	}
-	app.SetOpts(app.register...)
 
 	if err = app.onInit.InitFunc(ctx); err != nil {
 		return err
@@ -246,7 +249,27 @@ func (app *App) execute() error {
 	return nil
 }
 
+// Module regist module
+type Module struct {
+	Name    string
+	Regist  interface{}
+	Configs []interface{}
+}
+
+func (mod Module) String() string {
+	var configs []string
+	for _, c := range mod.Configs {
+		configs = append(configs, fmt.Sprintf("%#v, ", c))
+	}
+
+	return fmt.Sprintf("Name: %s, Regist: %#v, Configs: []Configs{%#v}", mod.Name, mod.Regist, strings.Join(configs, ", "))
+}
+
 // Regist v into framework
-func (app *App) Regist(v interface{}) {
-	app.register = append(app.register, v)
+func (app *App) Regist(regist interface{}, configs ...interface{}) {
+	mod := &Module{
+		Regist:  regist,
+		Configs: configs,
+	}
+	app.register = append(app.register, mod)
 }

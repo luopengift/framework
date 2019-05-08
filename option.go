@@ -99,6 +99,7 @@ func UpdateTo(src interface{}, dests ...interface{}) error {
 
 // UpdateFrom update form
 func UpdateFrom(dest interface{}, srcs ...interface{}) error {
+	fmt.Println("update", dest, srcs)
 	for _, src := range srcs {
 		if err := Format(dest, src); err != nil {
 			return err

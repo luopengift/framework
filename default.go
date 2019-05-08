@@ -11,7 +11,7 @@ var app *App
 
 func init() {
 	app = New()
-	app.Regist(NewLogOpt())
+	app.Regist(NewLog())
 }
 
 // Instance return app instance
@@ -124,4 +124,9 @@ func Errorf(format string, v ...interface{}) {
 // Fatalf Fatalf
 func Fatalf(format string, v ...interface{}) {
 	app.Log.Fatalf(format, v...)
+}
+
+// Regist regist
+func Regist(regist interface{}, configs ...interface{}) {
+	app.Regist(regist, configs...)
 }

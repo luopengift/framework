@@ -18,6 +18,11 @@ func NewStdLog(opt ...interface{}) *StdLog {
 	return &StdLog{}
 }
 
+// Init init
+func (*StdLog) Init() error {
+	return nil
+}
+
 // Debugf debugf
 func (*StdLog) Debugf(s string, v ...interface{}) {
 	text := fmt.Sprintf(perfix, "D", s)
