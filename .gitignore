@@ -1,4 +1,4 @@
 .*
 *.log
 logs
-go.mod
+go.sum

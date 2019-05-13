@@ -49,13 +49,13 @@ func NewOnce(opts ...interface{}) *App {
 	mux.Lock()
 	defer mux.Unlock()
 	one.Do(func() {
-		app = New(opts...)
+		app = New()
 	})
 	return app
 }
 
 // New new app instance
-func New(opts ...interface{}) *App {
+func New() *App {
 	sTime = time.Now()
 	app := &App{
 		Context: context.Background(),
@@ -72,23 +72,20 @@ func New(opts ...interface{}) *App {
 	app.SetInitFunc(defaultFunc)
 	app.SetMainFunc(mainThread)
 	app.SetExitFunc(defaultFunc)
-	app.SetOpts(opts...)
 	return app
 }
 
-// SetOpts set opts
-func (app *App) SetOpts(opts ...interface{}) *App {
-	for _, opt := range opts {
-		switch v := opt.(type) {
-		case LogProvider:
-			app.Log.LogProvider = v
-		case *Option:
-			app.mergeIn(v)
-		case Option:
-			app.mergeIn(&v)
-		default:
-			panic("Unknow type opts")
-		}
+// SetOpt set opt
+func (app *App) SetOpt(opt interface{}) *App {
+	switch v := opt.(type) {
+	case LogProvider:
+		app.Log.LogProvider = v
+	case *Option:
+		app.mergeIn(v)
+	case Option:
+		app.mergeIn(&v)
+	default:
+		panic("Unknow type opts")
 	}
 	return app
 }
@@ -194,7 +191,7 @@ func (app *App) execute() error {
 		if err = reg.Init(); err != nil {
 			return err
 		}
-		app.SetOpts(regist.Regist)
+		app.SetOpt(regist.Regist)
 	}
 
 	if err = app.onInit.InitFunc(ctx); err != nil {
