@@ -251,7 +251,6 @@ func (app *App) execute() error {
 
 // Module regist module
 type Module struct {
-	Name    string
 	Regist  interface{}
 	Configs []interface{}
 }
@@ -261,8 +260,7 @@ func (mod Module) String() string {
 	for _, c := range mod.Configs {
 		configs = append(configs, fmt.Sprintf("%#v, ", c))
 	}
-
-	return fmt.Sprintf("Name: %s, Regist: %#v, Configs: []Configs{%#v}", mod.Name, mod.Regist, strings.Join(configs, ", "))
+	return fmt.Sprintf("Regist: %#v, Configs: []Configs{%#v}", mod.Regist, strings.Join(configs, ", "))
 }
 
 // Regist v into framework
