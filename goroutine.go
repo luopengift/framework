@@ -46,8 +46,8 @@ func (app *App) runThreads(ctx context.Context) error {
 	return nil
 }
 
-// GoroutineFunc GoroutineFunc
-func (app *App) GoroutineFunc(name string, fs ThreadWithExitProvider, num ...int) {
+// SetGoroutineFunc GoroutineFunc
+func (app *App) SetGoroutineFunc(name string, fs ThreadWithExitFunc, num ...int) {
 	var min, max int
 	switch len(num) {
 	case 0:
