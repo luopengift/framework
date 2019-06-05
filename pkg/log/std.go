@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 const (
@@ -25,30 +26,30 @@ func (*StdLog) Init() error {
 
 // Debugf debugf
 func (*StdLog) Debugf(s string, v ...interface{}) {
-	text := fmt.Sprintf(perfix, "D", s)
+	text := fmt.Sprintf(time.Now().Format(perfix), "D", s)
 	fmt.Fprintf(os.Stderr, text, v...)
 }
 
 // Infof infof
 func (*StdLog) Infof(s string, v ...interface{}) {
-	text := fmt.Sprintf(perfix, "I", s)
+	text := fmt.Sprintf(time.Now().Format(perfix), "I", s)
 	fmt.Fprintf(os.Stderr, text, v...)
 }
 
 // Warnf warnf
 func (*StdLog) Warnf(s string, v ...interface{}) {
-	text := fmt.Sprintf(perfix, "W", s)
+	text := fmt.Sprintf(time.Now().Format(perfix), "W", s)
 	fmt.Fprintf(os.Stderr, text, v...)
 }
 
 // Errorf errorf
 func (*StdLog) Errorf(s string, v ...interface{}) {
-	text := fmt.Sprintf(perfix, "E", s)
+	text := fmt.Sprintf(time.Now().Format(perfix), "E", s)
 	fmt.Fprintf(os.Stderr, text, v...)
 }
 
 // Fatalf fatalf
 func (*StdLog) Fatalf(s string, v ...interface{}) {
-	text := fmt.Sprintf(perfix, "F", s)
+	text := fmt.Sprintf(time.Now().Format(perfix), "F", s)
 	fmt.Fprintf(os.Stderr, text, v...)
 }
