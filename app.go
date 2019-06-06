@@ -178,7 +178,7 @@ func (app *App) execute() error {
 	}
 
 	for _, regist := range app.register {
-		if err = Format(regist.Regist, app.ConfigProvider); err != nil {
+		if err = Format(regist.Regist, app.Option); err != nil {
 			return err
 		}
 		if err = UpdateFrom(regist.Regist, regist.Configs...); err != nil {
@@ -189,15 +189,16 @@ func (app *App) execute() error {
 			return fmt.Errorf("regist not implement Register interface")
 		}
 		if err = reg.Init(); err != nil {
-			return err
+			return fmt.Errorf("regist module init err: %v", err)
 		}
 		app.SetOpt(regist.Regist)
 	}
 
+	app.Log.Infof("[%s] init...", app.Name)
+
 	if err = app.onInit.InitFunc(ctx); err != nil {
 		return err
 	}
-	app.Log.Infof("[%s] init...", app.Name)
 
 	// http
 	app.initHttpd()

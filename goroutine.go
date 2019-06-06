@@ -78,7 +78,7 @@ func (app *App) runGoroutines(ctx context.Context) error {
 				var (
 					exit  bool // true: 退出goroutine, false: 循环调用goroutine.
 					err   error
-					entry = func(seq int, execute ThreadWithExitProvider) (bool, error) {
+					entry = func(name string, seq, num int, execute ThreadWithExitProvider) (bool, error) {
 						defer func() {
 							if err := recover(); err != nil {
 								app.Log.Fatalf("goroutine panic[%v-%v/%v] %v\n%v", name, seq, num, err, string(debug.Stack()))
@@ -94,7 +94,7 @@ func (app *App) runGoroutines(ctx context.Context) error {
 						app.Log.Errorf("goroutine ctx[%v-%v/%v]: %v", name, seq, num, ctx.Err())
 						return
 					default:
-						if exit, err = entry(seq, gor.exec); err != nil {
+						if exit, err = entry(name, seq, num, gor.exec); err != nil {
 							app.Log.Errorf("goroutine run[%v-%v/%v]: %v", name, seq, num, err)
 						}
 					}

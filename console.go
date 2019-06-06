@@ -9,7 +9,7 @@ import (
 
 // Logger log
 type Logger struct {
-	Debug          bool   `json:"debug,omitempty" yaml:"debug,omitempty" env:"DEBUG"`                                  // 控制台日志, Level=Debug
+	Level          string `json:"level,omitempty" yaml:"level,omitempty" env:"LEVEL"`                                  // 控制台日志, Level=Debug
 	Path           string `json:"path,omitempty" yaml:"path,omitempty" env:"PATH"`                                     // 日志文件路径
 	TextFormat     string `json:"text_format,omitempty" yaml:"text_format,omitempty" env:"TEXT_FORMAT"`                // 日志消息格式
 	TimeFormat     string `json:"time_format,omitempty" yaml:"time_format,omitempty" env:"TIME_FORMAT"`                // 时间格式
@@ -61,7 +61,7 @@ func (logger *Logger) Init() error {
 	w.SetMaxIndex(logger.MaxBackupIndex)
 	logger.Log = log.NewLog("framework", w)
 
-	if logger.Debug {
+	if logger.Level == "debug" {
 		logger.Log.SetLevel(log.DEBUG)
 		logger.Log.SetOutput(w, os.Stderr)
 	} else {
